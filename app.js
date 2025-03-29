@@ -20,7 +20,7 @@ const promptTemplates = {
         /**
          * 시스템 프롬프트: 프롬프트 생성 전문가에게 요청하는 내용
          */
-        system_prompt: "당신은 프롬프트 생성 전문가입니다. 사용자가 제공한 웹사이트 기획서와 디자인 요구사항을 바탕으로 두 가지 프롬프트를 생성해야 합니다: 1) DALL-E 3를 위한 이미지 생성 프롬프트, 2) GPT-4o를 위한 HTML 코드 생성 프롬프트. 두 프롬프트는 일관된 웹사이트를 생성하는 데 사용됩니다. 중요: 반드시 JSON 형식으로 응답해주세요. 다음 형식을 사용하세요: {\"dalle_prompt\": \"DALL-E 프롬프트 내용...\", \"gpt4o_prompt\": \"GPT-4o 프롬프트 내용...\"}",
+        system_prompt: "당신은 프롬프트 생성 전문가입니다. 사용자가 제공한 웹사이트 기획서와 디자인 요구사항을 바탕으로 두 가지 프롬프트를 생성해야 합니다: 1) DALL-E 3를 위한 이미지 생성 프롬프트, 2) GPT-4o를 위한 HTML 코드 생성 프롬프트. 두 프롬프트는 일관된 웹사이트를 생성하는 데 사용됩니다. \n\n중요: DALL-E 프롬프트는 1000자 제한이 있습니다. 모든 추가 텍스트를 포함하여 전체 프롬프트 길이가 1000자를 초과하면 API에서 오류가 발생합니다. 따라서 DALL-E 프롬프트는 간결하게 작성해주시고, 최대 800자 이내로 유지해주세요.\n\n반드시 JSON 형식으로 응답해주세요. 다음 형식을 사용하세요: {\"dalle_prompt\": \"DALL-E 프롬프트 내용...\", \"gpt4o_prompt\": \"GPT-4o 프롬프트 내용...\"}",
         /**
          * 사용자 프롬프트 템플릿: 기획서와 디자인 요구사항을 포함하는 템플릿
          */
@@ -81,6 +81,49 @@ const cloudStorageConfig = {
     }
 };
 
+// GCS 설정 저장
+function saveGCSSettings() {
+    try {
+        const projectId = document.getElementById('gcs-project-id').value.trim();
+        const bucketName = document.getElementById('gcs-bucket-name').value.trim();
+        const serviceAccountKey = document.getElementById('gcs-service-account-key').value.trim();
+        
+        if (projectId && bucketName && serviceAccountKey) {
+            localStorage.setItem('gcs-project-id', projectId);
+            localStorage.setItem('gcs-bucket-name', bucketName);
+            localStorage.setItem('gcs-service-account-key', serviceAccountKey);
+            alert('GCS 설정이 저장되었습니다.');
+            
+            // 서비스 계정 키 입력란은 보안을 위해 마스킹 처리
+            document.getElementById('gcs-service-account-key').value = '********';
+        } else {
+            alert('모든 GCS 설정 필드를 입력해주세요.');
+        }
+    } catch (error) {
+        console.error('GCS 설정 저장 오류:', error);
+        alert('GCS 설정 저장 중 오류가 발생했습니다.');
+    }
+}
+
+// GCS 설정 불러오기
+function loadGCSSettings() {
+    try {
+        const projectId = localStorage.getItem('gcs-project-id') || '';
+        const bucketName = localStorage.getItem('gcs-bucket-name') || '';
+        const serviceAccountKey = localStorage.getItem('gcs-service-account-key') || '';
+        
+        const projectIdInput = document.getElementById('gcs-project-id');
+        const bucketNameInput = document.getElementById('gcs-bucket-name');
+        const serviceAccountKeyInput = document.getElementById('gcs-service-account-key');
+        
+        if (projectIdInput && projectId) projectIdInput.value = projectId;
+        if (bucketNameInput && bucketName) bucketNameInput.value = bucketName;
+        if (serviceAccountKeyInput && serviceAccountKey) serviceAccountKeyInput.value = '********';
+    } catch (error) {
+        console.error('GCS 설정 불러오기 오류:', error);
+    }
+}
+
 // API 키 관리
 let apiKey = '';
 
@@ -139,9 +182,15 @@ function loadStepFromLocalStorage(stepNumber) {
         const data = localStorage.getItem(key);
         
         if (data) {
-            // 메모리 객체 업데이트
-            stepsMemory[`step${stepNumber}`] = JSON.parse(data);
-            return JSON.parse(data);
+            try {
+                // 메모리 객체 업데이트
+                const parsedData = JSON.parse(data);
+                stepsMemory[`step${stepNumber}`] = parsedData;
+                return parsedData;
+            } catch (parseError) {
+                console.error(`단계 ${stepNumber} 데이터 파싱 오류:`, parseError);
+                return null;
+            }
         }
         return null;
     } catch (error) {
@@ -154,6 +203,120 @@ function loadStepFromLocalStorage(stepNumber) {
 function loadAllStepsFromLocalStorage() {
     for (let i = 1; i <= 5; i++) {
         loadStepFromLocalStorage(i);
+    }
+    
+    // 로드된 데이터를 각 입력 필드에 채우기
+    populateFieldsFromLocalStorage();
+}
+
+// 로컬 스토리지 데이터로 입력 필드 채우기
+function populateFieldsFromLocalStorage() {
+    // 1단계: 웹사이트 아이디어
+    const step1Data = loadStepFromLocalStorage(1);
+    if (step1Data) {
+        if (typeof step1Data === 'string') {
+            ideaInput.value = step1Data;
+        }
+    }
+    
+    // 2단계: 기획 및 디자인 요구사항
+    const step2Data = loadStepFromLocalStorage(2);
+    if (step2Data) {
+        console.log('2단계 데이터 로드됨:', step2Data);
+        
+        if (step2Data.planning) {
+            planningDoc = step2Data.planning;
+            
+            let fullText = step2Data.planning;
+            if (step2Data.designRequirements) {
+                fullText += "\n\n" + step2Data.designRequirements;
+            }
+            
+            planningEditor.value = fullText;
+            planningOutput.innerHTML = marked.parse(fullText);
+        }
+    }
+    
+    // 3단계: 프롬프트
+    const step3Data = loadStepFromLocalStorage(3);
+    if (step3Data) {
+        if (step3Data.dalle) {
+            dallePromptEditor.value = step3Data.dalle;
+            dallePromptOutput.innerHTML = `<p>${step3Data.dalle}</p>`;
+            prompts.dalle = step3Data.dalle;
+        }
+        
+        if (step3Data.gpt4o) {
+            gpt4oPromptEditor.value = step3Data.gpt4o;
+            gpt4oPromptOutput.innerHTML = `<p>${step3Data.gpt4o}</p>`;
+            prompts.gpt4o = step3Data.gpt4o;
+        }
+    }
+    
+    // 4단계: 이미지 URL
+    const step4Data = loadStepFromLocalStorage(4);
+    if (step4Data) {
+        if (step4Data.header) {
+            headerImage.src = step4Data.header;
+            headerImage.style.display = 'block';
+            imageUrls.header = step4Data.header;
+        }
+        
+        if (step4Data.hero) {
+            heroImage.src = step4Data.hero;
+            heroImage.style.display = 'block';
+            imageUrls.hero = step4Data.hero;
+        }
+        
+        if (step4Data.content1) {
+            contentImage1.src = step4Data.content1;
+            contentImage1.style.display = 'block';
+            imageUrls.content1 = step4Data.content1;
+        }
+        
+        if (step4Data.content2) {
+            contentImage2.src = step4Data.content2;
+            contentImage2.style.display = 'block';
+            imageUrls.content2 = step4Data.content2;
+        }
+        
+        if (step4Data.content3) {
+            contentImage3.src = step4Data.content3;
+            contentImage3.style.display = 'block';
+            imageUrls.content3 = step4Data.content3;
+        }
+    }
+    
+    // 5단계: 생성된 HTML 코드
+    const step5Data = loadStepFromLocalStorage(5);
+    if (step5Data) {
+        // 객체인 경우 html 속성 가져오기, 문자열인 경우 그대로 사용 (하위 호환성)
+        const htmlCode = typeof step5Data === 'object' && step5Data !== null && step5Data.html 
+            ? step5Data.html 
+            : step5Data;
+            
+        generatedCode.textContent = htmlCode;
+        updatePreview(htmlCode);
+    }
+    
+    // 데이터가 있는 가장 높은 단계로 이동 (선택 사항)
+    moveToHighestCompletedStep();
+}
+
+// 완료된 가장 높은 단계로 이동
+function moveToHighestCompletedStep() {
+    // 완료된 단계 중 가장 높은 단계 찾기
+    let highestStep = 0;
+    for (let i = 5; i >= 1; i--) {
+        if (checkStepData(i)) {
+            highestStep = i - 1; // 배열 인덱스로 변환
+            break;
+        }
+    }
+    
+    // 가장 높은 단계로 이동 (단, 데이터가 있는 경우만)
+    if (highestStep > 0) {
+        showStep(highestStep);
     }
 }
 
@@ -202,36 +365,90 @@ const contentImage3 = document.getElementById('content-image-3');
 const generatedCode = document.getElementById('generated-code');
 const previewFrame = document.getElementById('preview-frame');
 const loadingIndicator = document.getElementById('loading-indicator');
+const planningLoading = document.getElementById('planning-loading');
+const promptsLoading = document.getElementById('prompts-loading');
+const imagesLoading = document.getElementById('images-loading');
+const codeLoading = document.getElementById('code-loading');
+const planningCopyBtn = document.getElementById('copy-planning');
+const dallePromptCopyBtn = document.getElementById('copy-dalle-prompt');
+const gpt4oPromptCopyBtn = document.getElementById('copy-gpt4o-prompt');
+const downloadBtn = document.getElementById('download-link');
 
 // 모든 단계 컨테이너
 const stepContainers = document.querySelectorAll('.step-content');
 
 // 앱 초기화
 function initApp() {
-    // 로컬 스토리지에서 API 키 불러오기
-    apiKey = localStorage.getItem('openai-api-key') || '';
-    if (apiKey) {
-        apiKeyInput.value = '********';
+    try {
+        // 로컬 스토리지에서 API 키 불러오기
+        apiKey = localStorage.getItem('openai-api-key') || '';
+        if (apiKey) {
+            apiKeyInput.value = '********';
+        }
+    
+        // 로컬 스토리지에서 단계 데이터 불러오기
+        loadAllStepsFromLocalStorage();
+        
+        // 요소 확인 후 이벤트 리스너 등록
+        if (saveApiKeyBtn) saveApiKeyBtn.addEventListener('click', saveApiKey);
+        if (generatePlanningBtn) generatePlanningBtn.addEventListener('click', generatePlanning);
+        if (generatePromptsBtn) generatePromptsBtn.addEventListener('click', generatePrompts);
+        if (generateImagesBtn) generateImagesBtn.addEventListener('click', generateImages);
+        if (generateFinalCodeBtn) generateFinalCodeBtn.addEventListener('click', generateFinalCode);
+        if (backToIdeaBtn) backToIdeaBtn.addEventListener('click', () => showStep(0));
+        if (backToPlanningBtn) backToPlanningBtn.addEventListener('click', () => showStep(1));
+        if (backToPromptsBtn) backToPromptsBtn.addEventListener('click', () => showStep(2));
+        if (backToImagesBtn) backToImagesBtn.addEventListener('click', () => showStep(3));
+        if (copyCodeBtn) copyCodeBtn.addEventListener('click', copyCode);
+        if (downloadCodeBtn) downloadCodeBtn.addEventListener('click', downloadHtmlFile);
+        
+        const applyPlanningEditBtn = document.getElementById('apply-planning-edit');
+        if (applyPlanningEditBtn) applyPlanningEditBtn.addEventListener('click', applyPlanningEdit);
+        
+        const applyDalleEditBtn = document.getElementById('apply-dalle-edit');
+        if (applyDalleEditBtn) applyDalleEditBtn.addEventListener('click', applyDalleEdit);
+        
+        const applyGpt4oEditBtn = document.getElementById('apply-gpt4o-edit');
+        if (applyGpt4oEditBtn) applyGpt4oEditBtn.addEventListener('click', applyGpt4oEdit);
+        
+        // 미리보기 버튼 이벤트 리스너 추가 (DOM이 완전히 로드된 후에 추가)
+        document.addEventListener('DOMContentLoaded', function() {
+            const previewBtn = document.getElementById('preview-btn');
+            if (previewBtn) {
+                previewBtn.addEventListener('click', showPreview);
+                console.log('미리보기 버튼 이벤트 리스너 등록 완료');
+            }
+        });
+        
+        // GCS 배포 버튼 이벤트 리스너 추가
+        const deployGcsBtn = document.getElementById('deploy-gcs-btn');
+        if (deployGcsBtn) {
+            deployGcsBtn.addEventListener('click', () => {
+                const htmlCode = document.getElementById('generated-code').textContent;
+                if (!htmlCode) {
+                    alert('먼저 HTML 코드를 생성해주세요.');
+                    return;
+                }
+                
+                const now = new Date();
+                const timestamp = `${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2, '0')}${now.getDate().toString().padStart(2, '0')}_${now.getHours().toString().padStart(2, '0')}${now.getMinutes().toString().padStart(2, '0')}`;
+                const filename = `generated_website_${timestamp}.html`;
+                
+                deployToGCSDirect(htmlCode, filename);
+            });
+        }
+        
+        // GCS 설정 저장 버튼 이벤트 리스너 추가
+        const saveGcsSettingsBtn = document.getElementById('save-gcs-settings');
+        if (saveGcsSettingsBtn) saveGcsSettingsBtn.addEventListener('click', saveGCSSettings);
+        
+        // GCS 설정 불러오기
+        loadGCSSettings();
+        
+        console.log("이벤트 리스너 등록 완료");
+    } catch (error) {
+        console.error("초기화 오류:", error);
     }
-
-    // 로컬 스토리지에서 단계 데이터 불러오기
-    loadAllStepsFromLocalStorage();
-
-    // 이벤트 리스너 등록
-    saveApiKeyBtn.addEventListener('click', saveApiKey);
-    generatePlanningBtn.addEventListener('click', generatePlanning);
-    generatePromptsBtn.addEventListener('click', generatePrompts);
-    generateImagesBtn.addEventListener('click', generateImages);
-    generateFinalCodeBtn.addEventListener('click', generateFinalCode);
-    backToIdeaBtn.addEventListener('click', () => showStep(0));
-    backToPlanningBtn.addEventListener('click', () => showStep(1));
-    backToPromptsBtn.addEventListener('click', () => showStep(2));
-    backToImagesBtn.addEventListener('click', () => showStep(3));
-    copyCodeBtn.addEventListener('click', copyCode);
-    downloadCodeBtn.addEventListener('click', downloadHtmlFile);
-    document.getElementById('apply-planning-edit').addEventListener('click', applyPlanningEdit);
-    document.getElementById('apply-dalle-edit').addEventListener('click', applyDalleEdit);
-    document.getElementById('apply-gpt4o-edit').addEventListener('click', applyGpt4oEdit);
 }
 
 // API 키 저장
@@ -249,9 +466,27 @@ function saveApiKey() {
 
 // 단계 표시 함수
 function showStep(stepIndex) {
+    // 단계 컨테이너 표시 설정
     stepContainers.forEach((container, index) => {
         if (index === stepIndex) {
             container.style.display = 'block';
+            
+            // 현재 단계의 출력과 편집기 표시 설정
+            if (index === 1) {
+                if (planningOutput) planningOutput.style.display = 'block';
+                if (planningCopyBtn) planningCopyBtn.style.display = 'block';
+            } else if (index === 2) {
+                if (dallePromptOutput) dallePromptOutput.style.display = 'block';
+                if (gpt4oPromptOutput) gpt4oPromptOutput.style.display = 'block';
+                if (dallePromptCopyBtn) dallePromptCopyBtn.style.display = 'block';
+                if (gpt4oPromptCopyBtn) gpt4oPromptCopyBtn.style.display = 'block';
+            } else if (index === 3) {
+                // 이미지 컨테이너 표시
+            } else if (index === 4) {
+                if (generatedCode) generatedCode.style.display = 'block';
+                if (previewFrame) previewFrame.style.display = 'block';
+                if (downloadBtn) downloadBtn.style.display = 'block';
+            }
         } else {
             container.style.display = 'none';
         }
@@ -263,50 +498,73 @@ function showStep(stepIndex) {
         const circleElement = step.querySelector('div:first-child');
         const textElement = step.querySelector('span');
         
+        // 모든 클래스 제거
+        circleElement.classList.remove('bg-gray-300', 'bg-indigo-600', 'bg-green-500', 'bg-yellow-500');
+        circleElement.classList.remove('text-gray-600', 'text-white');
+        textElement.classList.remove('text-gray-500', 'text-indigo-600', 'text-green-500', 'text-yellow-500');
+        
+        // 데이터 존재 여부 확인
+        const hasData = checkStepData(index + 1);
+        
         if (index === stepIndex) {
-            circleElement.classList.remove('bg-gray-300');
-            circleElement.classList.add('bg-indigo-600');
-            circleElement.classList.remove('text-gray-600');
-            circleElement.classList.add('text-white');
-            textElement.classList.remove('text-gray-500');
+            // 현재 단계는 항상 파란색
+            circleElement.classList.add('bg-indigo-600', 'text-white');
             textElement.classList.add('text-indigo-600');
-        } else if (index < stepIndex) {
-            // 이전 단계는 메모리 존재 여부에 따라 완료 표시
-            const hasMemory = checkStepMemory(index + 1);
-            
-            if (hasMemory) {
-                // 메모리가 있으면 녹색(완료)
-                circleElement.classList.remove('bg-gray-300');
-                circleElement.classList.add('bg-green-500');
-                circleElement.classList.remove('text-gray-600');
-                circleElement.classList.add('text-white');
-                textElement.classList.remove('text-gray-500');
-                textElement.classList.add('text-green-500');
-            } else {
-                // 메모리가 없으면 주황색(주의)
-                circleElement.classList.remove('bg-gray-300');
-                circleElement.classList.add('bg-yellow-500');
-                circleElement.classList.remove('text-gray-600');
-                circleElement.classList.add('text-white');
-                textElement.classList.remove('text-gray-500');
-                textElement.classList.add('text-yellow-500');
-            }
+        } else if (hasData) {
+            // 데이터가 있는 단계는 녹색
+            circleElement.classList.add('bg-green-500', 'text-white');
+            textElement.classList.add('text-green-500');
         } else {
-            // 나중 단계는 비활성화 표시
-            circleElement.classList.add('bg-gray-300');
-            circleElement.classList.remove('bg-indigo-600', 'bg-green-500', 'bg-yellow-500');
-            circleElement.classList.add('text-gray-600');
-            circleElement.classList.remove('text-white');
+            // 데이터가 없는 단계는 회색
+            circleElement.classList.add('bg-gray-300', 'text-gray-600');
             textElement.classList.add('text-gray-500');
-            textElement.classList.remove('text-indigo-600', 'text-green-500', 'text-yellow-500');
         }
     });
     
     // 현재 단계에 따른 뒤로 가기 버튼 상태 설정
-    backToIdeaBtn.style.display = stepIndex === 1 ? 'inline-block' : 'none';
-    backToPlanningBtn.style.display = stepIndex === 2 ? 'inline-block' : 'none';
-    backToPromptsBtn.style.display = stepIndex === 3 ? 'inline-block' : 'none';
-    backToImagesBtn.style.display = stepIndex === 4 ? 'inline-block' : 'none';
+    if (backToIdeaBtn) backToIdeaBtn.style.display = stepIndex === 1 ? 'inline-block' : 'none';
+    if (backToPlanningBtn) backToPlanningBtn.style.display = stepIndex === 2 ? 'inline-block' : 'none';
+    if (backToPromptsBtn) backToPromptsBtn.style.display = stepIndex === 3 ? 'inline-block' : 'none';
+    if (backToImagesBtn) backToImagesBtn.style.display = stepIndex === 4 ? 'inline-block' : 'none';
+}
+
+// 로딩 표시
+function showLoading(show) {
+    if (loadingIndicator) {
+        if (show) {
+            loadingIndicator.classList.remove('hidden');
+        } else {
+            loadingIndicator.classList.add('hidden');
+        }
+    }
+}
+
+// 특정 단계 로딩 표시
+function showStepLoading(stepNumber, show) {
+    let loadingElement;
+    
+    switch (stepNumber) {
+        case 1:
+            loadingElement = planningLoading;
+            break;
+        case 2:
+            loadingElement = promptsLoading;
+            break;
+        case 3:
+            loadingElement = imagesLoading;
+            break;
+        case 4:
+            loadingElement = codeLoading;
+            break;
+    }
+    
+    if (loadingElement) {
+        if (show) {
+            loadingElement.style.display = 'flex';
+        } else {
+            loadingElement.style.display = 'none';
+        }
+    }
 }
 
 // 1단계: 아이디어에서 기획 및 디자인 생성
@@ -317,46 +575,122 @@ async function generatePlanning() {
         return;
     }
 
-    if (!apiKey) {
-        alert('OpenAI API 키를 입력해주세요.');
-        return;
-    }
-
-    showLoading(true);
-
     try {
-        // 템플릿 변수 채우기
+        // 로딩 표시
+        showStepLoading(1, true);
+        
+        // 현재 단계(1단계) 데이터 저장
+        saveStepToLocalStorage(1, idea);
+        
+        // OpenAI API를 사용하여 GPT-4o로 기획 및 디자인 요구사항 생성
+        const systemPrompt = promptTemplates.planner_ai.system_prompt;
         const userPrompt = promptTemplates.planner_ai.user_prompt_template.replace('{user_description}', idea);
         
-        const response = await callOpenAI({
-            messages: [
-                {
-                    role: "system",
-                    content: promptTemplates.planner_ai.system_prompt
-                },
-                {
-                    role: "user",
-                    content: userPrompt
-                }
-            ]
-        });
-
+        const response = await callOpenAI('gpt-4o', systemPrompt, userPrompt);
+        
         if (response) {
+            // 로딩 끝
+            showStepLoading(1, false);
+            
+            // 응답 처리
             planningDoc = response;
-            planningOutput.innerHTML = marked.parse(response);
-            planningEditor.value = response; // 에디터에도 내용 설정
-            saveStepToLocalStorage(1, idea);
+            if (planningOutput) planningOutput.innerHTML = marked.parse(response);
+            if (planningEditor) planningEditor.value = response; // 에디터에도 내용 설정
+            
+            // 응답 데이터로 2단계 데이터 저장 (planning과 designRequirements 구분)
+            try {
+                // 기획 부분과 디자인 요구사항 부분 분리 (추출 실패해도 전체 저장)
+                const parts = extractPlanningParts(response);
+                
+                if (parts && parts.planningPart && parts.designRequirementsPart) {
+                    // 추출 성공시 분리해서 저장
+                    saveStepToLocalStorage(2, {
+                        planning: parts.planningPart,
+                        designRequirements: parts.designRequirementsPart
+                    });
+                } else {
+                    // 추출 실패시 전체 내용을 planning으로 저장
+                    saveStepToLocalStorage(2, {
+                        planning: response,
+                        designRequirements: ""
+                    });
+                }
+                
+                console.log('2단계 데이터 저장 완료:', localStorage.getItem(LOCAL_STORAGE_KEYS.STEP2));
+            } catch (parseError) {
+                console.error('기획서 파싱 오류:', parseError);
+                // 오류 발생시에도 전체 내용을 planning으로 저장
+                saveStepToLocalStorage(2, {
+                    planning: response,
+                    designRequirements: ""
+                });
+            }
+            
             showStep(1);
         }
     } catch (error) {
-        alert(`오류가 발생했습니다: ${error.message}`);
-        console.error('Error:', error);
-    } finally {
-        showLoading(false);
+        showStepLoading(1, false);
+        alert(`기획 및 디자인 요구사항 생성 중 오류가 발생했습니다: ${error.message}`);
+        console.error('기획 생성 오류:', error);
     }
 }
 
-// 2단계: 기획안으로부터 프롬프트 생성 (DALL-E 및 GPT-4o 프롬프트)
+// 기획서에서 planning과 design requirements 부분 추출
+function extractPlanningParts(text) {
+    try {
+        let planningPart = "";
+        let designRequirementsPart = "";
+        
+        // 기획 부분과 디자인 요구사항 부분 분리 정규식 패턴
+        const planningPattern = /## 웹사이트 기획서([\s\S]*?)(?=## 디자인 요구사항)/i;
+        const designRequirementsPattern = /## 디자인 요구사항([\s\S]*)/i;
+        
+        // 기획 부분 추출
+        const planningMatch = text.match(planningPattern);
+        if (planningMatch && planningMatch[0]) {
+            planningPart = planningMatch[0];
+        } else {
+            // 전통적인 방식으로 추출 시도
+            const planningHeaderIndex = text.indexOf("## 웹사이트 기획서");
+            const designHeaderIndex = text.indexOf("## 디자인 요구사항");
+            
+            if (planningHeaderIndex !== -1 && designHeaderIndex !== -1 && designHeaderIndex > planningHeaderIndex) {
+                planningPart = text.substring(planningHeaderIndex, designHeaderIndex);
+            }
+        }
+        
+        // 디자인 요구사항 부분 추출
+        const designRequirementsMatch = text.match(designRequirementsPattern);
+        if (designRequirementsMatch && designRequirementsMatch[0]) {
+            designRequirementsPart = designRequirementsMatch[0];
+        } else {
+            // 전통적인 방식으로 추출 시도
+            const designHeaderIndex = text.indexOf("## 디자인 요구사항");
+            
+            if (designHeaderIndex !== -1) {
+                designRequirementsPart = text.substring(designHeaderIndex);
+            }
+        }
+        
+        // 둘 다 추출 실패 시 기본값 설정
+        if (!planningPart && !designRequirementsPart) {
+            planningPart = text;
+        }
+        
+        return {
+            planningPart: planningPart.trim(),
+            designRequirementsPart: designRequirementsPart.trim()
+        };
+    } catch (error) {
+        console.error('기획서 파싱 오류:', error);
+        return {
+            planningPart: text,
+            designRequirementsPart: ""
+        };
+    }
+}
+
+// 2단계: 기획 및 디자인 요구사항으로 프롬프트 생성 (DALL-E 및 GPT-4o 프롬프트)
 async function generatePrompts() {
     if (!apiKey) {
         alert('OpenAI API 키를 입력해주세요.');
@@ -365,8 +699,9 @@ async function generatePrompts() {
 
     const planning = planningDoc;
 
-    showLoading(true);
-
+    // 로딩 상태 표시
+    showStepLoading(2, true);
+    
     try {
         // JSON 형식의 기획안에서 각 부분 추출 시도
         let planningPart = planning;
@@ -392,19 +727,8 @@ async function generatePrompts() {
             .replace('{design_requirements}', designRequirementsPart) + 
             "\n\n반드시 JSON 형식으로 응답해주세요. 응답은 {\"dalle_prompt\": \"...\", \"gpt4o_prompt\": \"...\"}의 형식이어야 합니다.";
 
-        const response = await callOpenAI({
-            messages: [
-                {
-                    role: "system",
-                    content: systemPrompt
-                },
-                {
-                    role: "user",
-                    content: userPrompt
-                }
-            ]
-        });
-
+        const response = await callOpenAI('gpt-4o', systemPrompt, userPrompt);
+        
         if (response) {
             console.log('API 응답:', response);
             
@@ -449,7 +773,7 @@ async function generatePrompts() {
                 } else {
                     console.error('GPT-4o 프롬프트가 JSON에 없음');
                     gpt4oPromptOutput.innerHTML = "<p>GPT-4o 프롬프트를 찾을 수 없습니다.</p>";
-                    prompts.gpt4o = "제공된 이미지 URL을 사용하여 단일 HTML 파일로 정적 웹사이트를 생성해주세요. 인라인 CSS 스타일링, 반응형 디자인, 부드러운 스크롤링을 포함하세요. DALL-E 3가 생성한 이미지의 URL을 플레이스홀더(예: \"header_image_url\", \"hero_image_url\", \"content_image_1_url\" 등)로 사용하세요.";
+                    prompts.gpt4o = "제공된 이미지 URL을 사용하여 단일 HTML 파일로 정적 웹사이트를 생성해주세요. 인라인 CSS 스타일링, 반응형 디자인, 부드러운 스크롤링을 포함하세요. 특히 단순 모바일 환경 기준으로 작성 후 확대하는 것이 아니라, 일정 크기 이상에서는 pc 혹은 태블릿을 대상으로 하여 별도로 디자인 해 주세요. DALL-E 3가 생성한 이미지의 URL을 플레이스홀더(예: \"header_image_url\", \"hero_image_url\", \"content_image_1_url\" 등)로 사용하세요.";
                     gpt4oPromptEditor.value = prompts.gpt4o;
                 }
                 
@@ -461,156 +785,174 @@ async function generatePrompts() {
                 gpt4oPromptOutput.innerHTML = "<p>프롬프트 파싱에 실패했습니다. 기본값을 사용합니다.</p>";
                 
                 prompts.dalle = "웹사이트를 위한 시각적으로 매력적인 이미지를 생성해주세요. 1024x1024 해상도의 고품질 이미지가 필요합니다.";
-                prompts.gpt4o = "제공된 이미지 URL을 사용하여 단일 HTML 파일로 정적 웹사이트를 생성해주세요. 인라인 CSS 스타일링, 반응형 디자인, 부드러운 스크롤링을 포함하세요. DALL-E 3가 생성한 이미지의 URL을 플레이스홀더(예: \"header_image_url\", \"hero_image_url\", \"content_image_1_url\" 등)로 사용하세요.";
+                prompts.gpt4o = "제공된 이미지 URL을 사용하여 단일 HTML 파일로 정적 웹사이트를 생성해주세요. 인라인 CSS 스타일링, 반응형 디자인, 부드러운 스크롤링을 포함하세요. 특히 단순 모바일 환경 기준으로 작성 후 확대하는 것이 아니라, 일정 크기 이상에서는 pc 혹은 태블릿을 대상으로 하여 별도로 디자인 해 주세요. DALL-E 3가 생성한 이미지의 URL을 플레이스홀더(예: \"header_image_url\", \"hero_image_url\", \"content_image_1_url\" 등)로 사용하세요.";
                 
                 dallePromptEditor.value = prompts.dalle;
                 gpt4oPromptEditor.value = prompts.gpt4o;
             }
             
+            // 현재 단계(2단계) 데이터 저장
             saveStepToLocalStorage(2, {
                 planning: planningPart,
                 designRequirements: designRequirementsPart
             });
+            
+            // 현재 단계(3단계) 데이터 저장
+            saveStepToLocalStorage(3, {
+                dalle: prompts.dalle,
+                gpt4o: prompts.gpt4o
+            });
+            
             showStep(2);
         }
     } catch (error) {
         alert(`오류가 발생했습니다: ${error.message}`);
         console.error('Error:', error);
     } finally {
-        showLoading(false);
+        // 로딩 상태 해제
+        showStepLoading(2, false);
     }
 }
 
 // 3단계: DALL-E 프롬프트로 이미지 생성
 async function generateImages() {
-    if (!apiKey) {
-        alert('OpenAI API 키를 입력해주세요.');
+    if (!dallePromptEditor?.value?.trim()) {
+        alert('먼저 DALL-E 프롬프트를 생성해주세요.');
         return;
     }
-
-    if (!prompts.dalle) {
-        alert('DALL-E 프롬프트가 생성되지 않았습니다.');
-        return;
-    }
-
-    showLoading(true);
 
     try {
-        // 헤더 이미지 생성
-        const headerPrompt = promptTemplates.dalle_template.user_prompt_template.replace('{dalle_prompt}', 
-            prompts.dalle + "\n\n이것은 헤더 배너 이미지입니다.");
-        const headerResponse = await callOpenAIImage(headerPrompt, "1024x1024");
-        if (headerResponse && headerResponse.data && headerResponse.data.length > 0) {
-            imageUrls.header = headerResponse.data[0].url;
-            headerImage.src = imageUrls.header;
-        }
+        // 로딩 표시
+        showStepLoading(3, true);
         
-        // 히어로 배경 이미지 생성
-        const heroPrompt = promptTemplates.dalle_template.user_prompt_template.replace('{dalle_prompt}', 
-            prompts.dalle + "\n\n이것은 히어로 섹션 배경 이미지입니다.");
-        const heroResponse = await callOpenAIImage(heroPrompt, "1024x1024");
-        if (heroResponse && heroResponse.data && heroResponse.data.length > 0) {
-            imageUrls.hero = heroResponse.data[0].url;
-            heroImage.src = imageUrls.hero;
-        }
+        // 현재 편집된 프롬프트 가져오기
+        const currentDallePrompt = dallePromptEditor?.value?.trim() || '';
+        const currentGpt4oPrompt = gpt4oPromptEditor?.value?.trim() || '';
         
-        // 콘텐츠 이미지 1 생성
-        const content1Prompt = promptTemplates.dalle_template.user_prompt_template.replace('{dalle_prompt}', 
-            prompts.dalle + "\n\n이것은 첫 번째 콘텐츠 섹션 이미지입니다.");
-        const content1Response = await callOpenAIImage(content1Prompt, "1024x1024");
-        if (content1Response && content1Response.data && content1Response.data.length > 0) {
-            imageUrls.content1 = content1Response.data[0].url;
-            contentImage1.src = imageUrls.content1;
-        }
-        
-        // 콘텐츠 이미지 2 생성
-        const content2Prompt = promptTemplates.dalle_template.user_prompt_template.replace('{dalle_prompt}', 
-            prompts.dalle + "\n\n이것은 두 번째 콘텐츠 섹션 이미지입니다.");
-        const content2Response = await callOpenAIImage(content2Prompt, "1024x1024");
-        if (content2Response && content2Response.data && content2Response.data.length > 0) {
-            imageUrls.content2 = content2Response.data[0].url;
-            contentImage2.src = imageUrls.content2;
-        }
-        
-        // 콘텐츠 이미지 3 생성
-        const content3Prompt = promptTemplates.dalle_template.user_prompt_template.replace('{dalle_prompt}', 
-            prompts.dalle + "\n\n이것은 세 번째 콘텐츠 섹션 이미지입니다.");
-        const content3Response = await callOpenAIImage(content3Prompt, "1024x1024");
-        if (content3Response && content3Response.data && content3Response.data.length > 0) {
-            imageUrls.content3 = content3Response.data[0].url;
-            contentImage3.src = imageUrls.content3;
-        }
-        
+        // 현재 단계(3단계) 데이터 저장
         saveStepToLocalStorage(3, {
-            dalle: prompts.dalle,
-            gpt4o: prompts.gpt4o
+            dalle: currentDallePrompt,
+            gpt4o: currentGpt4oPrompt
         });
+        
+        // 이미지 영역 초기화
+        if (headerImage) headerImage.style.display = 'none';
+        if (heroImage) heroImage.style.display = 'none';
+        if (contentImage1) contentImage1.style.display = 'none';
+        if (contentImage2) contentImage2.style.display = 'none';
+        if (contentImage3) contentImage3.style.display = 'none';
+        
+        // 5개의 이미지 생성
+        prompts.dalle = currentDallePrompt;
+        
+        // 헤더 이미지
+        const headerPrompt = promptTemplates.dalle_template.user_prompt_template.replace('{dalle_prompt}', prompts.dalle + "\n\n이것은 헤더 배너 이미지입니다.");
+        const headerResponse = await generateImage(headerPrompt);
+        if (headerResponse && headerResponse.data && headerResponse.data[0].url) {
+            imageUrls.header = headerResponse.data[0].url;
+            if (headerImage) headerImage.src = imageUrls.header;
+            if (headerImage) headerImage.style.display = 'block';
+        }
+        
+        // 히어로 이미지
+        const heroPrompt = promptTemplates.dalle_template.user_prompt_template.replace('{dalle_prompt}', prompts.dalle + "\n\n이것은 히어로 배너 이미지입니다.");
+        const heroResponse = await generateImage(heroPrompt);
+        if (heroResponse && heroResponse.data && heroResponse.data[0].url) {
+            imageUrls.hero = heroResponse.data[0].url;
+            if (heroImage) heroImage.src = imageUrls.hero;
+            if (heroImage) heroImage.style.display = 'block';
+        }
+        
+        // 컨텐츠 이미지 1
+        const content1Prompt = promptTemplates.dalle_template.user_prompt_template.replace('{dalle_prompt}', prompts.dalle + "\n\n이것은 웹사이트 컨텐츠용 이미지입니다.");
+        const content1Response = await generateImage(content1Prompt);
+        if (content1Response && content1Response.data && content1Response.data[0].url) {
+            imageUrls.content1 = content1Response.data[0].url;
+            if (contentImage1) contentImage1.src = imageUrls.content1;
+            if (contentImage1) contentImage1.style.display = 'block';
+        }
+        
+        // 컨텐츠 이미지 2
+        const content2Prompt = promptTemplates.dalle_template.user_prompt_template.replace('{dalle_prompt}', prompts.dalle + "\n\n이것은 웹사이트 컨텐츠용 이미지로, 첫 번째 이미지와 다른 스타일입니다.");
+        const content2Response = await generateImage(content2Prompt);
+        if (content2Response && content2Response.data && content2Response.data[0].url) {
+            imageUrls.content2 = content2Response.data[0].url;
+            if (contentImage2) contentImage2.src = imageUrls.content2;
+            if (contentImage2) contentImage2.style.display = 'block';
+        }
+        
+        // 컨텐츠 이미지 3
+        const content3Prompt = promptTemplates.dalle_template.user_prompt_template.replace('{dalle_prompt}', prompts.dalle + "\n\n이것은 웹사이트 컨텐츠용 이미지로, 이전 이미지들과 다른 주제입니다.");
+        const content3Response = await generateImage(content3Prompt);
+        if (content3Response && content3Response.data && content3Response.data[0].url) {
+            imageUrls.content3 = content3Response.data[0].url;
+            if (contentImage3) contentImage3.src = imageUrls.content3;
+            if (contentImage3) contentImage3.style.display = 'block';
+        }
+        
+        // 로딩 끝
+        showStepLoading(3, false);
+        
+        // 응답 데이터로 4단계 데이터 저장
         saveStepToLocalStorage(4, { ...imageUrls });
+        
         showStep(3);
     } catch (error) {
         alert(`이미지 생성 중 오류가 발생했습니다: ${error.message}`);
-        console.error('Image generation error:', error);
-    } finally {
-        showLoading(false);
+        console.error('이미지 생성 오류:', error);
+        showStepLoading(3, false);
     }
 }
 
-// 4단계: GPT-4o 프롬프트와 이미지 URL을 사용하여 최종 코드 생성
+// 4단계: 생성된 이미지와 프롬프트로 최종 코드 생성
 async function generateFinalCode() {
-    if (!apiKey) {
-        alert('OpenAI API 키를 입력해주세요.');
+    if (!imageUrls.header || !imageUrls.hero) {
+        alert('먼저 이미지를 생성해주세요.');
         return;
     }
-
-    if (!prompts.gpt4o) {
-        alert('HTML 생성 프롬프트가 없습니다. 이전 단계를 완료해주세요.');
-        return;
-    }
-
-    // 생성된 이미지 URL 모두 있는지 확인
-    if (!imageUrls.header || !imageUrls.hero || !imageUrls.content1 || 
-        !imageUrls.content2 || !imageUrls.content3) {
-        alert('모든 이미지가 생성되지 않았습니다. 이전 단계를 완료해주세요.');
-        return;
-    }
-
-    showLoading(true);
 
     try {
-        // Firebase SDK 로드 (필요시에만)
-        await loadFirebaseSDK();
+        // 로딩 표시
+        showStepLoading(4, true);
         
-        // GPT-4o 프롬프트에 이미지 URL 삽입
-        const htmlGenerationPrompt = prompts.gpt4o
-            .replace(/header_image_url/g, imageUrls.header)
-            .replace(/hero_image_url/g, imageUrls.hero)
-            .replace(/content_image_1_url/g, imageUrls.content1)
-            .replace(/content_image_2_url/g, imageUrls.content2)
-            .replace(/content_image_3_url/g, imageUrls.content3);
+        // 현재 단계(4단계) 데이터 저장
+        saveStepToLocalStorage(4, { ...imageUrls });
+        
+        // HTML 생성 프롬프트 설정
+        const htmlGenerationPrompt = `
+# 웹사이트 생성 요청
+다음 정보를 기반으로 완전한 HTML 정적 웹사이트를 생성해주세요:
 
-        // 템플릿 변수 채우기
-        const userPrompt = promptTemplates.gpt4o_template.user_prompt_template
-            .replace('{html_generation_prompt}', htmlGenerationPrompt);
+## 기획 문서
+${planningDoc}
 
-        const response = await callOpenAI({
-            messages: [
-                {
-                    role: "system",
-                    content: promptTemplates.gpt4o_template.system_prompt
-                },
-                {
-                    role: "user",
-                    content: userPrompt
-                }
-            ]
-        });
+## 이미지 URL
+헤더 이미지: ${imageUrls.header}
+히어로 이미지: ${imageUrls.hero}
+컨텐츠 이미지 1: ${imageUrls.content1}
+컨텐츠 이미지 2: ${imageUrls.content2}
+컨텐츠 이미지 3: ${imageUrls.content3}
 
+## 추가 지침
+${prompts.gpt4o}
+
+이미지는 OpenAI URL이니 출력물에 직접 사용할 수 있습니다. 모든 내용을 단일 HTML 파일에 넣어 반환해주세요.
+`;
+
+        // OpenAI API를 사용하여 GPT-4o로 HTML 코드 생성
+        const systemPrompt = promptTemplates.gpt4o_template.system_prompt;
+        const userPrompt = promptTemplates.gpt4o_template.user_prompt_template.replace('{html_generation_prompt}', htmlGenerationPrompt);
+        
+        const response = await callOpenAI('gpt-4o', systemPrompt, userPrompt);
+        
         if (response) {
-            console.log('HTML 생성 응답:', response);
+            // 로딩 끝
+            showStepLoading(4, false);
             
             try {
                 // JSON 응답 파싱 시도
                 let htmlData;
+                let htmlCode;
                 
                 // JSON 부분만 추출 시도
                 const jsonMatch = response.match(/```json\s*([\s\S]*?)\s*```/) || 
@@ -618,49 +960,81 @@ async function generateFinalCode() {
                 
                 if (jsonMatch) {
                     try {
-                        htmlData = JSON.parse(jsonMatch[0].replace(/```json|```/g, '').trim());
+                        // JSON 파싱 시도
+                        htmlData = JSON.parse(jsonMatch[1] || jsonMatch[0]);
+                        
+                        // HTML 코드 추출 성공
+                        if (htmlData && htmlData.html_code) {
+                            htmlCode = htmlData.html_code;
+                            generatedCode.textContent = htmlCode;
+                            updatePreview(htmlCode);
+                            
+                            // 생성된 코드를 브라우저에서 저장하고 다운로드 링크 설정
+                            saveHtmlToOutputFolder(htmlCode);
+                            
+                            // 응답 데이터로 5단계 데이터 저장
+                            saveStepToLocalStorage(5, { html: htmlCode });
+                            
+                            showStep(4);
+                            return;
+                        }
+                        
+                        // html_code가 없는 경우 html 키 확인 (하위 호환성)
+                        if (htmlData && htmlData.html) {
+                            htmlCode = htmlData.html;
+                            generatedCode.textContent = htmlCode;
+                            updatePreview(htmlCode);
+                            
+                            // 생성된 코드를 브라우저에서 저장하고 다운로드 링크 설정
+                            saveHtmlToOutputFolder(htmlCode);
+                            
+                            // 응답 데이터로 5단계 데이터 저장
+                            saveStepToLocalStorage(5, { html: htmlCode });
+                            
+                            showStep(4);
+                            return;
+                        }
                     } catch (e) {
-                        console.log('JSON 블록 파싱 실패, 전체 응답 시도:', e);
-                        htmlData = JSON.parse(response);
+                        console.error('JSON 파싱 실패:', e);
                     }
-                } else {
-                    htmlData = JSON.parse(response);
                 }
                 
-                console.log('파싱된 JSON:', htmlData);
+                // JSON 파싱 실패 시 HTML 코드 부분만 추출
+                let htmlOnly = response;
                 
-                if (htmlData.html_code) {
-                    htmlCode = htmlData.html_code;
+                // HTML 태그가 있는지 확인하고 추출
+                const htmlMatch = response.match(/<html[\s\S]*<\/html>/i) || 
+                                 response.match(/<body[\s\S]*<\/body>/i) || 
+                                 response.match(/<!DOCTYPE[\s\S]*<\/html>/i);
+                
+                if (htmlMatch) {
+                    htmlOnly = htmlMatch[0];
                 } else {
-                    console.error('HTML 코드가 JSON에 없음');
-                    htmlCode = response;
+                    // <html> 태그는 없지만 코드 블록 안에 HTML이 있는 경우
+                    const codeBlockMatch = response.match(/```html\s*([\s\S]*?)\s*```/) || 
+                                         response.match(/```\s*([\s\S]*?)\s*```/);
+                    if (codeBlockMatch) {
+                        htmlOnly = codeBlockMatch[1];
+                    }
                 }
                 
-                // HTML 코드 표시
-                generatedCode.textContent = htmlCode;
+                generatedCode.textContent = htmlOnly;
+                updatePreview(htmlOnly);
+                saveHtmlToOutputFolder(htmlOnly);
                 
-                // 미리보기 업데이트
-                updatePreview(htmlCode);
+                // 응답 데이터로 5단계 데이터 저장
+                saveStepToLocalStorage(5, { html: htmlOnly });
                 
-                // 생성된 코드를 브라우저에서 저장하고 다운로드 링크 설정
-                saveHtmlToOutputFolder(htmlCode);
-                
-                saveStepToLocalStorage(5, htmlCode);
                 showStep(4);
             } catch (error) {
                 console.error('HTML 처리 실패:', error);
-                generatedCode.textContent = response;
-                updatePreview(response);
-                saveHtmlToOutputFolder(response);
-                saveStepToLocalStorage(5, response);
-                showStep(4);
+                alert(`HTML 처리 중 오류가 발생했습니다: ${error.message}`);
             }
         }
     } catch (error) {
-        alert(`오류가 발생했습니다: ${error.message}`);
-        console.error('Error:', error);
-    } finally {
-        showLoading(false);
+        showStepLoading(4, false);
+        alert(`코드 생성 중 오류가 발생했습니다: ${error.message}`);
+        console.error('코드 생성 오류:', error);
     }
 }
 
@@ -689,62 +1063,6 @@ function saveHtmlToOutputFolder(htmlCode) {
 // 다운로드 링크 설정
 function setupDownloadLink(filename, htmlCode, blobUrl) {
     const downloadBtn = document.getElementById('download-code');
-    const container = document.createElement('div');
-    container.className = 'mt-4 flex flex-col items-start';
-    
-    // 파일명 표시
-    const pathInfo = document.createElement('p');
-    pathInfo.className = 'text-sm text-gray-600 mb-2';
-    pathInfo.textContent = `파일명: ${filename}`;
-    
-    // 직접 열기 링크
-    const openLink = document.createElement('a');
-    openLink.href = blobUrl;
-    openLink.className = 'text-indigo-600 hover:text-indigo-800 transition mb-2';
-    openLink.textContent = '생성된 웹사이트 미리보기';
-    openLink.target = '_blank';
-    
-    // 배포 버튼 컨테이너 (나란히 배치)
-    const deployBtnContainer = document.createElement('div');
-    deployBtnContainer.className = 'flex flex-wrap gap-2 mb-3';
-    
-    // Signed URL 방식 배포 버튼
-    const deployGCSBtn = document.createElement('button');
-    deployGCSBtn.className = 'bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded';
-    deployGCSBtn.textContent = 'GCS에 배포 (Signed URL)';
-    deployGCSBtn.onclick = () => deployToGCS(htmlCode, filename);
-    
-    // Firebase 직접 배포 버튼
-    const deployFirebaseBtn = document.createElement('button');
-    deployFirebaseBtn.className = 'bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded';
-    deployFirebaseBtn.textContent = 'Firebase에 직접 배포';
-    deployFirebaseBtn.onclick = () => deployToFirebase(htmlCode, filename);
-    
-    // 서비스 계정 키 직접 사용 배포 버튼
-    const deployServiceAccountBtn = document.createElement('button');
-    deployServiceAccountBtn.className = 'bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded';
-    deployServiceAccountBtn.textContent = 'GCS에 직접 배포 (서비스 계정)';
-    deployServiceAccountBtn.onclick = () => deployWithServiceAccount(htmlCode, filename);
-    
-    deployBtnContainer.appendChild(deployGCSBtn);
-    deployBtnContainer.appendChild(deployFirebaseBtn);
-    deployBtnContainer.appendChild(deployServiceAccountBtn);
-    
-    container.appendChild(pathInfo);
-    container.appendChild(openLink);
-    container.appendChild(deployBtnContainer);
-    
-    // 기존 컨테이너가 있으면 내용 교체, 없으면 새로 생성
-    const linkContainer = document.getElementById('link-container');
-    if (linkContainer) {
-        linkContainer.innerHTML = '';
-        linkContainer.appendChild(container);
-    } else {
-        const newLinkContainer = document.createElement('div');
-        newLinkContainer.id = 'link-container';
-        newLinkContainer.appendChild(container);
-        downloadBtn.parentNode.insertBefore(newLinkContainer, downloadBtn.nextSibling);
-    }
     
     // 기존 다운로드 버튼 클릭 이벤트 업데이트
     downloadBtn.onclick = () => {
@@ -752,353 +1070,28 @@ function setupDownloadLink(filename, htmlCode, blobUrl) {
     };
 }
 
-// GCS에 배포하는 함수 (Signed URL 방식)
-async function deployToGCS(htmlCode, filename) {
-    try {
-        // 배포 버튼 상태 변경
-        const deployBtn = document.querySelector('#link-container button:nth-child(1)');
-        if (deployBtn) {
-            deployBtn.disabled = true;
-            deployBtn.textContent = 'GCS 배포 중...';
-            deployBtn.className = 'bg-gray-400 text-white font-bold py-2 px-4 rounded';
-        }
-        
-        // Signed URL 요청
-        const response = await fetch(cloudStorageConfig.signedUrl.endpoint, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                filename: filename,
-                contentType: 'text/html'
-            })
-        });
-        
-        if (!response.ok) {
-            throw new Error('Signed URL을 가져오는데 실패했습니다.');
-        }
-        
-        const data = await response.json();
-        const signedUrl = data.url;
-        
-        // Signed URL을 사용하여 파일 업로드
-        const uploadResponse = await fetch(signedUrl, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'text/html',
-                'Cache-Control': 'public, max-age=86400'
-            },
-            body: htmlCode
-        });
-        
-        if (!uploadResponse.ok) {
-            throw new Error('파일 업로드에 실패했습니다.');
-        }
-        
-        // 성공 메시지 및 링크 표시
-        const publicUrl = `${cloudStorageConfig.signedUrl.publicUrlBase}/${filename}`;
-        showDeploymentSuccess(publicUrl, 'GCS (Signed URL)');
-        
-        // 배포 버튼 상태 복원
-        if (deployBtn) {
-            deployBtn.disabled = false;
-            deployBtn.textContent = 'GCS에 배포 (Signed URL)';
-            deployBtn.className = 'bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded';
-        }
-        
-        return publicUrl;
-    } catch (error) {
-        // 오류 처리
-        console.error('GCS 배포 실패:', error);
-        alert(`GCS 배포 중 오류가 발생했습니다: ${error.message}`);
-        
-        // 배포 버튼 상태 복원
-        const deployBtn = document.querySelector('#link-container button:nth-child(1)');
-        if (deployBtn) {
-            deployBtn.disabled = false;
-            deployBtn.textContent = 'GCS에 배포 (Signed URL)';
-            deployBtn.className = 'bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded';
-        }
-        
-        return null;
-    }
-}
+// 미리보기 버튼에 이벤트 리스너 추가
+const previewBtn = document.getElementById('preview-btn');
+if (previewBtn) previewBtn.addEventListener('click', showPreview);
 
-// Firebase Storage에 직접 배포하는 함수
-async function deployToFirebase(htmlCode, filename) {
+// 미리보기 함수
+function showPreview() {
     try {
-        // Firebase가 로드되었는지 확인
-        if (!window.firebase || !window.firebase.storage) {
-            await loadFirebaseSDK();
+        const htmlCode = document.getElementById('generated-code').textContent;
+        if (!htmlCode) {
+            alert('먼저 HTML 코드를 생성해주세요.');
+            return;
         }
         
-        // 배포 버튼 상태 변경
-        const deployBtn = document.querySelector('#link-container button:nth-child(2)');
-        if (deployBtn) {
-            deployBtn.disabled = true;
-            deployBtn.textContent = 'Firebase 배포 중...';
-            deployBtn.className = 'bg-gray-400 text-white font-bold py-2 px-4 rounded';
-        }
-        
-        // Firebase Storage 참조 생성
-        const storage = window.firebase.storage();
-        const storageRef = storage.ref();
-        const fileRef = storageRef.child(filename);
-        
-        // 파일 데이터 생성 및 업로드
+        // Blob URL 생성
         const blob = new Blob([htmlCode], { type: 'text/html' });
+        const blobURL = URL.createObjectURL(blob);
         
-        // 파일 업로드
-        const uploadTask = fileRef.put(blob, {
-            contentType: 'text/html',
-            customMetadata: {
-                'cache-control': 'public, max-age=86400'
-            }
-        });
-        
-        // 업로드 완료 대기
-        await uploadTask;
-        
-        // 다운로드 URL 획득
-        const downloadURL = await fileRef.getDownloadURL();
-        
-        // 성공 메시지 및 링크 표시
-        showDeploymentSuccess(downloadURL, 'Firebase Storage');
-        
-        // 배포 버튼 상태 복원
-        if (deployBtn) {
-            deployBtn.disabled = false;
-            deployBtn.textContent = 'Firebase에 직접 배포';
-            deployBtn.className = 'bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded';
-        }
-        
-        return downloadURL;
+        // 새 탭에서 Blob URL 열기
+        window.open(blobURL, '_blank');
     } catch (error) {
-        // 오류 처리
-        console.error('Firebase 배포 실패:', error);
-        alert(`Firebase 배포 중 오류가 발생했습니다: ${error.message}`);
-        
-        // 배포 버튼 상태 복원
-        const deployBtn = document.querySelector('#link-container button:nth-child(2)');
-        if (deployBtn) {
-            deployBtn.disabled = false;
-            deployBtn.textContent = 'Firebase에 직접 배포';
-            deployBtn.className = 'bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded';
-        }
-        
-        return null;
-    }
-}
-
-// 서비스 계정 키를 사용하여 GCS에 직접 배포하는 함수
-async function deployWithServiceAccount(htmlCode, filename) {
-    try {
-        // 서비스 계정 SDK 로드
-        await loadGoogleCloudSDK();
-        
-        // 배포 버튼 상태 변경
-        const deployBtn = document.querySelector('#link-container button:nth-child(3)');
-        if (deployBtn) {
-            deployBtn.disabled = true;
-            deployBtn.textContent = '서비스 계정으로 배포 중...';
-            deployBtn.className = 'bg-gray-400 text-white font-bold py-2 px-4 rounded';
-        }
-        
-        // 서비스 계정 정보 확인
-        if (!cloudStorageConfig.serviceAccount.privateKey || 
-            !cloudStorageConfig.serviceAccount.clientEmail || 
-            !cloudStorageConfig.serviceAccount.projectId) {
-            throw new Error('서비스 계정 정보가 설정되지 않았습니다.');
-        }
-        
-        // 서비스 계정 인증 준비
-        const serviceAccount = {
-            projectId: cloudStorageConfig.serviceAccount.projectId,
-            clientEmail: cloudStorageConfig.serviceAccount.clientEmail,
-            privateKey: cloudStorageConfig.serviceAccount.privateKey
-        };
-        
-        // 파일 데이터 및 메타데이터 준비
-        const blob = new Blob([htmlCode], { type: 'text/html' });
-        const contentType = 'text/html';
-        const bucket = cloudStorageConfig.serviceAccount.bucket;
-        
-        // Google Cloud Storage API 직접 호출 (CORS 문제 발생 가능)
-        // 실제로는 이 부분이 브라우저에서 직접 작동하지 않을 수 있음 (CORS 및 보안 문제)
-        // 일반적으로는 서버사이드에서 수행되어야 하는 작업
-        
-        // 임시 업로드 코드 (직접 호출은 실제 환경에서 작동하지 않을 수 있음)
-        const now = new Date();
-        const expiresInSeconds = 15 * 60; // 15분
-        const expiry = Math.floor(now.getTime() / 1000) + expiresInSeconds;
-        
-        // 서명 생성 (이 부분은 실제 서버에서 수행되어야 함)
-        const signedUrl = await generateSignedUrl(
-            serviceAccount,
-            'PUT',
-            bucket,
-            filename,
-            expiry,
-            contentType
-        );
-        
-        if (!signedUrl) {
-            throw new Error('Signed URL을 생성할 수 없습니다. 서비스 계정 키를 확인하세요.');
-        }
-        
-        // 생성된 Signed URL로 업로드
-        const uploadResponse = await fetch(signedUrl, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': contentType,
-                'Cache-Control': 'public, max-age=86400'
-            },
-            body: htmlCode
-        });
-        
-        if (!uploadResponse.ok) {
-            throw new Error('서비스 계정을 사용한 파일 업로드에 실패했습니다.');
-        }
-        
-        // 성공 메시지 및 링크 표시
-        const publicUrl = `${cloudStorageConfig.serviceAccount.publicUrlBase}/${filename}`;
-        showDeploymentSuccess(publicUrl, 'GCS (서비스 계정)');
-        
-        // 배포 버튼 상태 복원
-        if (deployBtn) {
-            deployBtn.disabled = false;
-            deployBtn.textContent = 'GCS에 직접 배포 (서비스 계정)';
-            deployBtn.className = 'bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded';
-        }
-        
-        return publicUrl;
-    } catch (error) {
-        // 오류 처리
-        console.error('서비스 계정 배포 실패:', error);
-        alert(`서비스 계정 배포 중 오류가 발생했습니다: ${error.message}\n\n참고: 보안상의 이유로 브라우저에서 서비스 계정 키를 직접 사용한 업로드는 제한될 수 있습니다.`);
-        
-        // 배포 버튼 상태 복원
-        const deployBtn = document.querySelector('#link-container button:nth-child(3)');
-        if (deployBtn) {
-            deployBtn.disabled = false;
-            deployBtn.textContent = 'GCS에 직접 배포 (서비스 계정)';
-            deployBtn.className = 'bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded';
-        }
-        
-        return null;
-    }
-}
-
-// Google Cloud Storage SDK 로드
-async function loadGoogleCloudSDK() {
-    // 이미 로드되었는지 확인
-    if (window.gapi && window.gapi.client && window.gapi.client.storage) {
-        return Promise.resolve();
-    }
-    
-    // Google API 클라이언트 라이브러리 로드
-    await loadScript('https://apis.google.com/js/api.js');
-    
-    return new Promise((resolve, reject) => {
-        window.gapi.load('client', async () => {
-            try {
-                // 스토리지 API 초기화
-                await window.gapi.client.init({
-                    apiKey: '',
-                    discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/storage/v1/rest']
-                });
-                
-                console.log('Google Cloud SDK 로드 완료');
-                resolve();
-            } catch (error) {
-                console.error('Google Cloud SDK 초기화 실패:', error);
-                reject(error);
-            }
-        });
-    });
-}
-
-// 서명된 URL 생성 함수 (브라우저 환경에서는 작동하지 않을 수 있음)
-async function generateSignedUrl(serviceAccount, method, bucket, fileName, expiry, contentType) {
-    try {
-        // 실제 구현은 서버에서 이루어져야 합니다.
-        // 브라우저 환경에서 직접 서명을 생성하는 것은 보안상 권장되지 않습니다.
-        console.warn('서비스 계정 키를 사용한 서명 생성은 브라우저에서 직접 수행할 수 없습니다.');
-        console.warn('이 기능은 데모 목적이며, 실제로는 서버에서 구현해야 합니다.');
-        
-        // 주의 메시지 표시
-        alert('서비스 계정 키를 사용한 직접 배포는 브라우저에서 제한됩니다. 서버측 구현이 필요합니다.');
-        
-        // 실제 환경에서는 서버 API를 호출하여 서명된 URL을 받아와야 합니다.
-        return null;
-    } catch (error) {
-        console.error('서명된 URL 생성 실패:', error);
-        return null;
-    }
-}
-
-// Firebase SDK 동적 로드
-async function loadFirebaseSDK() {
-    // 이미 로드되었는지 확인
-    if (window.firebase && window.firebase.storage) {
-        return Promise.resolve();
-    }
-    
-    // Firebase 앱 SDK 로드
-    await loadScript('https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js');
-    // Firebase 스토리지 SDK 로드
-    await loadScript('https://www.gstatic.com/firebasejs/9.6.10/firebase-storage-compat.js');
-    
-    // Firebase 초기화
-    try {
-        if (!window.firebase.apps.length) {
-            window.firebase.initializeApp(cloudStorageConfig.firebase);
-        }
-        console.log('Firebase SDK 로드 완료');
-    } catch (error) {
-        console.error('Firebase 초기화 실패:', error);
-        // 실패해도 계속 진행 (배포 시도 시 오류 처리)
-    }
-}
-
-// 배포 성공 시 메시지 표시
-function showDeploymentSuccess(publicUrl, deployType) {
-    const linkContainer = document.getElementById('link-container');
-    if (!linkContainer) return;
-    
-    const successMessage = document.createElement('div');
-    successMessage.className = 'mt-3 p-3 bg-green-100 border border-green-400 text-green-700 rounded';
-    
-    const successText = document.createElement('p');
-    successText.className = 'font-semibold';
-    successText.textContent = `웹사이트가 ${deployType}에 성공적으로 배포되었습니다!`;
-    
-    const urlContainer = document.createElement('div');
-    urlContainer.className = 'mt-2';
-    
-    const urlLink = document.createElement('a');
-    urlLink.href = publicUrl;
-    urlLink.className = 'text-blue-600 hover:text-blue-800 underline';
-    urlLink.textContent = '배포된 웹사이트 방문하기';
-    urlLink.target = '_blank';
-    
-    const urlText = document.createElement('p');
-    urlText.className = 'text-sm text-gray-600 mt-1';
-    urlText.textContent = publicUrl;
-    
-    urlContainer.appendChild(urlLink);
-    urlContainer.appendChild(urlText);
-    
-    successMessage.appendChild(successText);
-    successMessage.appendChild(urlContainer);
-    
-    // 성공 메시지 추가
-    const existingMessage = linkContainer.querySelector('.bg-green-100');
-    if (existingMessage) {
-        linkContainer.replaceChild(successMessage, existingMessage);
-    } else {
-        linkContainer.appendChild(successMessage);
+        console.error('미리보기 오류:', error);
+        alert('미리보기를 표시하는 중 오류가 발생했습니다.');
     }
 }
 
@@ -1117,12 +1110,14 @@ function downloadHtmlFile(htmlCode, filename) {
 
 // 미리보기 업데이트
 function updatePreview(code) {
-    const iframe = previewFrame;
-    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-    
-    iframeDoc.open();
-    iframeDoc.write(code);
-    iframeDoc.close();
+    const previewWindow = window.open('', '_blank');
+    if (previewWindow) {
+        previewWindow.document.open();
+        previewWindow.document.write(code);
+        previewWindow.document.close();
+    } else {
+        alert('팝업 차단이 활성화되어 있습니다. 미리보기를 허용해주세요.');
+    }
 }
 
 // 코드 복사
@@ -1140,15 +1135,6 @@ function copyCode() {
             console.error('클립보드 복사 실패:', err);
             alert('코드 복사에 실패했습니다.');
         });
-}
-
-// 로딩 표시
-function showLoading(show) {
-    if (show) {
-        loadingIndicator.classList.remove('hidden');
-    } else {
-        loadingIndicator.classList.add('hidden');
-    }
 }
 
 // 프롬프트 편집 적용 함수
@@ -1177,7 +1163,7 @@ function applyGpt4oEdit() {
 }
 
 // OpenAI API 텍스트 생성 호출 함수
-async function callOpenAI(data) {
+async function callOpenAI(model, systemPrompt, userPrompt) {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -1185,8 +1171,17 @@ async function callOpenAI(data) {
             'Authorization': `Bearer ${apiKey}`
         },
         body: JSON.stringify({
-            model: "gpt-4o",
-            messages: data.messages,
+            model: model,
+            messages: [
+                {
+                    "role": "system",
+                    "content": systemPrompt
+                },
+                {
+                    "role": "user",
+                    "content": userPrompt
+                }
+            ],
             temperature: 0.7,
             max_tokens: 4000
         })
@@ -1223,6 +1218,11 @@ async function callOpenAIImage(prompt, size = "1024x1024") {
     }
 
     return await response.json();
+}
+
+// OpenAI API로 이미지 생성
+async function generateImage(prompt, size = "1024x1024") {
+    return await callOpenAIImage(prompt, size);
 }
 
 // 필요한 외부 라이브러리 추가 - marked.js (마크다운 파싱)
@@ -1288,3 +1288,207 @@ style.textContent = `
   }
 `;
 document.head.appendChild(style);
+
+// GCS에 직접 업로드 함수
+async function deployToGCSDirect(htmlContent, filename) {
+    try {
+        console.log("GCS 직접 업로드 시작");
+        
+        // 로컬 스토리지에서 GCS 설정 가져오기
+        const projectId = localStorage.getItem('gcs-project-id');
+        const bucketName = localStorage.getItem('gcs-bucket-name');
+        const serviceAccountKey = localStorage.getItem('gcs-service-account-key');
+        
+        if (!projectId || !bucketName || !serviceAccountKey) {
+            alert('GCS 설정을 먼저 저장해주세요.');
+            return;
+        }
+        
+        // 로딩 표시
+        showLoading(true);
+        
+        try {
+            // 서비스 계정 키 JSON 파싱
+            const serviceAccount = JSON.parse(serviceAccountKey);
+            console.log("서비스 계정 키 파싱 성공");
+            
+            // HTML 컨텐츠로부터 Blob 생성
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            console.log("Blob 생성 완료:", blob.size, "bytes");
+            
+            try {
+                // GCS 버킷에 CORS 설정이 되어있는지 확인
+                const corsTestUrl = `https://storage.googleapis.com/${bucketName}/cors-test`;
+                
+                // CORS 테스트 - HEAD 요청을 보내 CORS가 설정되어 있는지 확인
+                const corsTest = await fetch(corsTestUrl, {
+                    method: 'HEAD',
+                    mode: 'cors'
+                }).catch(e => {
+                    console.log("CORS 테스트 실패:", e);
+                    return { ok: false, status: e.message };
+                });
+                
+                if (corsTest && corsTest.ok) {
+                    console.log("CORS 설정 확인됨");
+                    
+                    // Firebase Storage를 통한 업로드 시도
+                    // Firebase 초기화
+                    if (!firebase.apps.length) {
+                        firebase.initializeApp({
+                            projectId: projectId,
+                            storageBucket: `${bucketName}.appspot.com`
+                        });
+                    }
+                    
+                    // Firebase Storage 참조 생성
+                    const storage = firebase.storage();
+                    const storageRef = storage.ref();
+                    const fileRef = storageRef.child(filename);
+                    
+                    // 파일 업로드
+                    console.log("Firebase Storage 업로드 시작");
+                    const uploadTask = await fileRef.put(blob);
+                    console.log("업로드 완료:", uploadTask);
+                    
+                    // 다운로드 URL 가져오기
+                    const downloadURL = await fileRef.getDownloadURL();
+                    console.log("다운로드 URL:", downloadURL);
+                    
+                    // 로딩 숨기기
+                    showLoading(false);
+                    
+                    // 성공 알림
+                    alert('GCS 업로드 성공! URL: ' + downloadURL);
+                    
+                    // 업로드 완료 후 링크 생성 및 표시
+                    displayUploadedLink(downloadURL, filename);
+                    
+                    return downloadURL;
+                } else {
+                    // CORS가 설정되어 있지 않은 경우 가이드 표시
+                    console.log("CORS 설정이 필요합니다.");
+                    
+                    // 로딩 숨기기
+                    showLoading(false);
+                    
+                    // 파일 다운로드로 대체
+                    const downloadLink = document.createElement('a');
+                    downloadLink.href = URL.createObjectURL(blob);
+                    downloadLink.download = filename;
+                    document.body.appendChild(downloadLink);
+                    downloadLink.click();
+                    document.body.removeChild(downloadLink);
+                    
+                    // CORS 설정 가이드 표시
+                    const linkContainer = document.getElementById('link-container') || createLinkContainer();
+                    const guideElement = document.createElement('div');
+                    guideElement.className = 'mt-4 p-4 bg-yellow-100 rounded';
+                    guideElement.innerHTML = `
+                        <p class="font-semibold">GCS CORS 설정 가이드</p>
+                        <p class="my-2">직접 업로드를 위해 GCS 버킷에 CORS 설정이 필요합니다:</p>
+                        <ol class="list-decimal ml-5 mt-2">
+                            <li>GCS 콘솔에 접속: <a href="https://console.cloud.google.com/storage/browser/${bucketName}" target="_blank" class="text-blue-600 underline">GCS 버킷 바로가기</a></li>
+                            <li>"설정" 탭으로 이동</li>
+                            <li>"CORS 구성"에 다음 JSON을 추가하세요:</li>
+                        </ol>
+                        <pre class="bg-gray-800 text-white p-3 rounded mt-2 overflow-auto">
+[
+  {
+    "origin": ["*"],
+    "method": ["GET", "HEAD", "PUT", "POST", "OPTIONS"],
+    "responseHeader": ["Content-Type", "Content-Length", "Content-Encoding", "Content-Disposition", "Cache-Control", "Authorization"],
+    "maxAgeSeconds": 3600
+  }
+]</pre>
+                        <p class="mt-3">설정 후 다시 시도해주세요. 파일은 이미 다운로드되었습니다: ${filename}</p>
+                    `;
+                    linkContainer.appendChild(guideElement);
+                    
+                    return null;
+                }
+            } catch (uploadError) {
+                console.error("파일 업로드 오류:", uploadError);
+                
+                // 로딩 숨기기
+                showLoading(false);
+                
+                alert('파일 업로드 실패: ' + uploadError.message);
+                return null;
+            }
+        } catch (error) {
+            console.error("GCS 업로드 준비 오류:", error);
+            
+            // 로딩 숨기기
+            showLoading(false);
+            
+            alert('GCS 업로드 준비 실패: ' + error.message);
+            return null;
+        }
+    } catch (error) {
+        console.error("GCS 직접 업로드 오류:", error);
+        
+        // 로딩 숨기기
+        showLoading(false);
+        
+        alert('GCS 업로드 실패: ' + error.message);
+        return null;
+    }
+}
+
+// 로딩 표시/숨김 함수
+function showLoading(show) {
+    const loadingIndicator = document.getElementById('loading-indicator');
+    if (loadingIndicator) {
+        if (show) {
+            loadingIndicator.classList.remove('hidden');
+        } else {
+            loadingIndicator.classList.add('hidden');
+        }
+    }
+}
+
+// 업로드된 링크 표시 함수
+function displayUploadedLink(url, filename) {
+    // 링크 컨테이너 찾기 또는 생성
+    let container = document.getElementById('link-container');
+    if (!container) {
+        container = createLinkContainer();
+    }
+    
+    // 기존 링크 제거
+    const existingLink = container.querySelector(`a[data-filename="${filename}"]`);
+    if (existingLink) {
+        existingLink.parentElement.remove();
+    }
+    
+    // 새 링크 아이템 생성
+    const linkItem = document.createElement('div');
+    linkItem.className = 'bg-white shadow rounded p-3 my-2 flex justify-between items-center';
+    
+    const linkAnchor = document.createElement('a');
+    linkAnchor.href = url;
+    linkAnchor.target = '_blank';
+    linkAnchor.textContent = filename;
+    linkAnchor.className = 'text-blue-600 hover:underline';
+    linkAnchor.setAttribute('data-filename', filename);
+    
+    linkItem.appendChild(linkAnchor);
+    container.appendChild(linkItem);
+}
+
+// 링크 컨테이너 생성 함수
+function createLinkContainer() {
+    const container = document.createElement('div');
+    container.id = 'link-container';
+    container.className = 'mt-6';
+    
+    const title = document.createElement('h3');
+    title.className = 'text-lg font-semibold mb-2';
+    title.textContent = '배포된 사이트 링크';
+    
+    container.appendChild(title);
+    document.getElementById('step-5-content').appendChild(container);
+    
+    return container;
+}
