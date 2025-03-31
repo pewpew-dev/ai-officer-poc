@@ -1,0 +1,40 @@
+name: Deploy Production
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
+          export_default_credentials: true
+
+      - name: Deploy to Production Server
+        run: |
+          gcloud compute ssh ${{ secrets.PROD_SERVER_INSTANCE_NAME }} \
+            --zone=${{ secrets.PROD_SERVER_ZONE }} \
+            --project=${{ secrets.GCP_PROJECT_ID }} \
+            --command="
+              cd ai-officer-poc
+              export NVM_DIR=~/.nvm
+              source ~/.nvm/nvm.sh
+              git fetch --prune origin
+              git remote update
+              git reset --hard origin/${{ github.ref_name }}
+              git checkout ${{ github.ref_name }}
+              git pull origin ${{ github.ref_name }}
+              npm install
+              npm run build
+              pm2 startOrRestart server || npm run start
+            "
