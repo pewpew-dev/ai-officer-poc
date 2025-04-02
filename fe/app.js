@@ -8,11 +8,11 @@ import { initFirebaseAuth, loadUserUsage, googleLogin, logout } from './auth.js'
 
 // 이미지 URL 저장 
 let imageUrls = {
-    header: '',
-    hero: '',
-    content1: '',
-    content2: '',
-    content3: ''
+    header: { placeholder: '{{IMAGE_HEADER}}', url: '' },
+    hero: { placeholder: '{{IMAGE_HERO}}', url: '' },
+    content1: { placeholder: '{{IMAGE_CONTENT1}}', url: '' },
+    content2: { placeholder: '{{IMAGE_CONTENT2}}', url: '' },
+    content3: { placeholder: '{{IMAGE_CONTENT3}}', url: '' }
 };
 
 // 프롬프트 저장
@@ -133,35 +133,35 @@ function populateFieldsFromLocalStorage() {
     if (step4Data) {
         if (step4Data.header) {
             const headerImage = document.getElementById('header-image');
-            if (headerImage) headerImage.src = step4Data.header;
+            if (headerImage) headerImage.src = step4Data.header.url;
             if (headerImage) headerImage.style.display = 'block';
             imageUrls.header = step4Data.header;
         }
         
         if (step4Data.hero) {
             const heroImage = document.getElementById('hero-image');
-            if (heroImage) heroImage.src = step4Data.hero;
+            if (heroImage) heroImage.src = step4Data.hero.url;
             if (heroImage) heroImage.style.display = 'block';
             imageUrls.hero = step4Data.hero;
         }
         
         if (step4Data.content1) {
             const contentImage1 = document.getElementById('content-image-1');
-            if (contentImage1) contentImage1.src = step4Data.content1;
+            if (contentImage1) contentImage1.src = step4Data.content1.url;
             if (contentImage1) contentImage1.style.display = 'block';
             imageUrls.content1 = step4Data.content1;
         }
         
         if (step4Data.content2) {
             const contentImage2 = document.getElementById('content-image-2');
-            if (contentImage2) contentImage2.src = step4Data.content2;
+            if (contentImage2) contentImage2.src = step4Data.content2.url;
             if (contentImage2) contentImage2.style.display = 'block';
             imageUrls.content2 = step4Data.content2;
         }
         
         if (step4Data.content3) {
             const contentImage3 = document.getElementById('content-image-3');
-            if (contentImage3) contentImage3.src = step4Data.content3;
+            if (contentImage3) contentImage3.src = step4Data.content3.url;
             if (contentImage3) contentImage3.style.display = 'block';
             imageUrls.content3 = step4Data.content3;
         }
@@ -689,8 +689,8 @@ async function generateImages() {
         const headerPrompt = promptTemplates.dalle_template.user_prompt_template.replace('{dalle_prompt}', prompts.dalle + "\n\n이것은 헤더 배너 이미지입니다.");
         const headerResponse = await generateImage(headerPrompt);
         if (headerResponse && headerResponse.data && headerResponse.data[0].url) {
-            imageUrls.header = headerResponse.data[0].url;
-            if (headerImage) headerImage.src = imageUrls.header;
+            imageUrls.header.url = headerResponse.data[0].url;
+            if (headerImage) headerImage.src = imageUrls.header.url;
             if (headerImage) headerImage.style.display = 'block';
         }
         
@@ -698,8 +698,8 @@ async function generateImages() {
         const heroPrompt = promptTemplates.dalle_template.user_prompt_template.replace('{dalle_prompt}', prompts.dalle + "\n\n이것은 히어로 배너 이미지입니다.");
         const heroResponse = await generateImage(heroPrompt);
         if (heroResponse && heroResponse.data && heroResponse.data[0].url) {
-            imageUrls.hero = heroResponse.data[0].url;
-            if (heroImage) heroImage.src = imageUrls.hero;
+            imageUrls.hero.url = heroResponse.data[0].url;
+            if (heroImage) heroImage.src = imageUrls.hero.url;
             if (heroImage) heroImage.style.display = 'block';
         }
         
@@ -707,8 +707,8 @@ async function generateImages() {
         const content1Prompt = promptTemplates.dalle_template.user_prompt_template.replace('{dalle_prompt}', prompts.dalle + "\n\n이것은 웹사이트 컨텐츠용 이미지입니다.");
         const content1Response = await generateImage(content1Prompt);
         if (content1Response && content1Response.data && content1Response.data[0].url) {
-            imageUrls.content1 = content1Response.data[0].url;
-            if (contentImage1) contentImage1.src = imageUrls.content1;
+            imageUrls.content1.url = content1Response.data[0].url;
+            if (contentImage1) contentImage1.src = imageUrls.content1.url;
             if (contentImage1) contentImage1.style.display = 'block';
         }
         
@@ -716,8 +716,8 @@ async function generateImages() {
         const content2Prompt = promptTemplates.dalle_template.user_prompt_template.replace('{dalle_prompt}', prompts.dalle + "\n\n이것은 웹사이트 컨텐츠용 이미지로, 첫 번째 이미지와 다른 스타일입니다.");
         const content2Response = await generateImage(content2Prompt);
         if (content2Response && content2Response.data && content2Response.data[0].url) {
-            imageUrls.content2 = content2Response.data[0].url;
-            if (contentImage2) contentImage2.src = imageUrls.content2;
+            imageUrls.content2.url = content2Response.data[0].url;
+            if (contentImage2) contentImage2.src = imageUrls.content2.url;
             if (contentImage2) contentImage2.style.display = 'block';
         }
         
@@ -725,8 +725,8 @@ async function generateImages() {
         const content3Prompt = promptTemplates.dalle_template.user_prompt_template.replace('{dalle_prompt}', prompts.dalle + "\n\n이것은 웹사이트 컨텐츠용 이미지로, 이전 이미지들과 다른 주제입니다.");
         const content3Response = await generateImage(content3Prompt);
         if (content3Response && content3Response.data && content3Response.data[0].url) {
-            imageUrls.content3 = content3Response.data[0].url;
-            if (contentImage3) contentImage3.src = imageUrls.content3;
+            imageUrls.content3.url = content3Response.data[0].url;
+            if (contentImage3) contentImage3.src = imageUrls.content3.url;
             if (contentImage3) contentImage3.style.display = 'block';
         }
         
@@ -749,7 +749,7 @@ async function generateImages() {
 
 // 4단계: 생성된 이미지와 프롬프트로 최종 코드 생성
 async function generateFinalCode() {
-    if (!imageUrls.header || !imageUrls.hero) {
+    if (!imageUrls.header.url || !imageUrls.hero.url) {
         showErrorModal('먼저 이미지를 생성해주세요.');
         return;
     }
@@ -769,17 +769,19 @@ async function generateFinalCode() {
 ## 기획 문서
 ${planningDoc}
 
-## 이미지 URL
-헤더 이미지: ${imageUrls.header}
-히어로 이미지: ${imageUrls.hero}
-컨텐츠 이미지 1: ${imageUrls.content1}
-컨텐츠 이미지 2: ${imageUrls.content2}
-컨텐츠 이미지 3: ${imageUrls.content3}
+## 이미지 플레이스홀더
+이미지는 다음 플레이스홀더를 사용해 주세요:
+헤더 이미지: ${imageUrls.header.placeholder}
+히어로 이미지: ${imageUrls.hero.placeholder}
+컨텐츠 이미지 1: ${imageUrls.content1.placeholder}
+컨텐츠 이미지 2: ${imageUrls.content2.placeholder}
+컨텐츠 이미지 3: ${imageUrls.content3.placeholder}
 
 ## 추가 지침
 ${prompts.gpt4o}
 
-이미지는 OpenAI URL이니 출력물에 직접 사용할 수 있습니다. 모든 내용을 단일 HTML 파일에 넣어 반환해주세요.
+이미지는 반드시 위의 플레이스홀더를 img 태그의 src 속성에 그대로 사용해주세요. 예: <img src="${imageUrls.header.placeholder}">
+모든 내용을 단일 HTML 파일에 넣어 반환해주세요.
 `;
 
         // OpenAI API를 사용하여 GPT-4o로 HTML 코드 생성
@@ -973,8 +975,8 @@ async function deployToBackend() {
                     await Promise.all(Object.keys(imageUrls).filter(key => {
                         // 유효한 URL만 처리 (undefined, null, 빈 문자열 제외)
                         return imageUrls[key] && 
-                               typeof imageUrls[key] === 'string' && 
-                               imageUrls[key].startsWith('http') &&
+                               typeof imageUrls[key] === 'object' && 
+                               imageUrls[key].url && 
                                key !== '__proto__' && 
                                key !== 'constructor';
                     }).map(async (key) => {
@@ -990,7 +992,7 @@ async function deployToBackend() {
                                     'Authorization': `Bearer ${idToken}`
                                 },
                                 body: JSON.stringify({
-                                    imageUrl: imageUrls[key],
+                                    imageUrl: imageUrls[key].url,
                                     fileName,
                                     contentType: 'image/png'
                                 })
@@ -1019,9 +1021,11 @@ async function deployToBackend() {
                     let htmlCode = step5Data.html;
                     
                     // 이미지 URL 교체
-                    Object.keys(imageUrls).forEach((key) => {
-                        if (newImageUrls[key]) {
-                            htmlCode = htmlCode.replace(new RegExp(imageUrls[key].replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), newImageUrls[key]);
+                    Object.keys(step4Data).forEach((key) => {
+                        if (step4Data[key] && typeof step4Data[key] === 'object' && step4Data[key].url) {
+                            // 플레이스홀더 패턴 ({{IMAGE_KEY}})
+                            const placeholder = step4Data[key].placeholder;
+                            htmlCode = htmlCode.replace(new RegExp(placeholder, 'g'), step4Data[key].url);
                         }
                     });
                     
@@ -1096,6 +1100,18 @@ function showPreview() {
         }
         
         console.log('원본 HTML 길이:', htmlCode.length);
+        
+        // 플레이스홀더를 OpenAI URL로 변경
+        const step4Data = loadStepFromLocalStorage(4);
+        if (step4Data) {
+            Object.keys(step4Data).forEach(key => {
+                if (step4Data[key] && typeof step4Data[key] === 'object' && step4Data[key].url) {
+                    // 플레이스홀더 패턴 ({{IMAGE_KEY}})
+                    const placeholder = step4Data[key].placeholder;
+                    htmlCode = htmlCode.replace(new RegExp(placeholder, 'g'), step4Data[key].url);
+                }
+            });
+        }
         
         // iframe에서 로드될 HTML에 스크립트 추가 (CORS 모드를 no-cors로 변경)
         const noCorsScript = `
