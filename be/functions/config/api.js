@@ -35,7 +35,7 @@ const apiUsageCalc = {
 const requestLimits = {
   maxContentSizeMB: 10,  // 최대 컨텐츠 크기 (MB)
   timeouts: {
-    default: 60000,      // 기본 타임아웃: 60초
+    default: 50000,      // 기본 타임아웃: 50초
     image: 30000         // 이미지 요청: 30초
   }
 };

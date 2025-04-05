@@ -14,9 +14,241 @@ Authorization: Bearer {idToken}
 
 여기서 `{idToken}`은 Firebase Authentication에서 발급한 ID 토큰입니다.
 
+## 공통 요청 파라미터
+
+- **type**: 생성할 결과물의 타입을 지정합니다. 
+  - `text`: 텍스트 생성 (모든 AI 모델 공급자 지원)
+  - `image`: 이미지 생성 (현재 OpenAI만 지원)
+  
+  모든 요청에는 반드시 `type` 필드가 포함되어야 합니다. 멀티모달 입력(이미지와 텍스트 함께 입력)은 별도의 type 값이 아닌, 모델명과 입력 데이터 구조로 구분합니다.
+
 ## API 엔드포인트
 
-### 1. OpenAI API 호출
+### 1. AI 모델 API 호출
+
+다양한 AI 모델(OpenAI, Google, Anthropic)을 호출하여 텍스트 생성, 이미지 생성 등의 기능을 수행합니다.
+
+#### 1.1. OpenAI 모델 API
+
+##### 요청
+
+```
+POST /api/model/openai
+```
+
+##### 헤더
+
+```
+Content-Type: application/json
+Authorization: Bearer {idToken}
+```
+
+##### 요청 본문 (텍스트 생성)
+
+```json
+{
+  "type": "text",
+  "model": "gpt-4o",
+  "messages": [
+    {
+      "role": "system",
+      "content": "시스템 프롬프트"
+    },
+    {
+      "role": "user",
+      "content": "사용자 프롬프트"
+    }
+  ]
+}
+```
+
+##### 요청 본문 (이미지 생성)
+
+```json
+{
+  "type": "image",
+  "prompt": "이미지 생성을 위한 프롬프트",
+  "n": 1,
+  "size": "1024x1024"
+}
+```
+
+> **참고**: 이미지 생성 요청에서 `prompt`, `n`, `size`는 모두 필수 파라미터입니다.
+
+##### 응답 (텍스트 생성)
+
+```json
+{
+  "success": true,
+  "data": {
+    "content": "OpenAI API가 생성한 텍스트 내용"
+  }
+}
+```
+
+##### 응답 (이미지 생성)
+
+```json
+{
+  "success": true,
+  "data": {
+    "images": [
+      {
+        "url": "https://example.com/image.jpg"
+      }
+    ]
+  }
+}
+```
+
+#### 1.2. Google 모델 API (Gemini)
+
+##### 요청
+
+```
+POST /api/model/google
+```
+
+##### 헤더
+
+```
+Content-Type: application/json
+Authorization: Bearer {idToken}
+```
+
+##### 요청 본문 (텍스트 생성)
+
+```json
+{
+  "type": "text",
+  "model": "gemini-pro",
+  "contents": [
+    {
+      "role": "user",
+      "parts": [
+        {
+          "text": "사용자 프롬프트"
+        }
+      ]
+    }
+  ]
+}
+```
+
+##### 요청 본문 (멀티모달 입력을 통한 텍스트 생성)
+
+```json
+{
+  "type": "text",
+  "model": "gemini-pro-vision",
+  "contents": [
+    {
+      "role": "user",
+      "parts": [
+        {
+          "text": "이 이미지에 대해 설명해주세요"
+        },
+        {
+          "inline_data": {
+            "mime_type": "image/jpeg",
+            "data": "BASE64_ENCODED_IMAGE_DATA"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+##### 응답 (텍스트 생성)
+
+```json
+{
+  "success": true,
+  "data": {
+    "content": "Google Gemini API가 생성한 텍스트 내용"
+  }
+}
+```
+
+#### 1.3. Anthropic 모델 API (Claude)
+
+##### 요청
+
+```
+POST /api/model/anthropic
+```
+
+##### 헤더
+
+```
+Content-Type: application/json
+Authorization: Bearer {idToken}
+```
+
+##### 요청 본문 (텍스트 생성)
+
+```json
+{
+  "type": "text",
+  "model": "claude-3-opus-20240229",
+  "messages": [
+    {
+      "role": "user",
+      "content": "사용자 프롬프트"
+    }
+  ],
+  "max_tokens": 2048,
+  "temperature": 0.7
+}
+```
+
+> **참고**: Claude API 요청에서 `model`, `messages`, `max_tokens`, `temperature`는 모두 필수 파라미터입니다.
+
+##### 요청 본문 (멀티모달 입력을 통한 텍스트 생성)
+
+```json
+{
+  "type": "text",
+  "model": "claude-3-opus-20240229",
+  "messages": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "이 이미지에 대해 설명해주세요"
+        },
+        {
+          "type": "image",
+          "source": {
+            "type": "base64",
+            "media_type": "image/jpeg",
+            "data": "BASE64_ENCODED_IMAGE_DATA"
+          }
+        }
+      ]
+    }
+  ],
+  "max_tokens": 2048,
+  "temperature": 0.7
+}
+```
+
+##### 응답 (텍스트 생성)
+
+```json
+{
+  "success": true,
+  "data": {
+    "content": "Anthropic Claude API가 생성한 텍스트 내용"
+  }
+}
+```
+
+### 2. OpenAI API 호출 (사용 중단 예정)
+
+> **주의**: 이 엔드포인트는 사용 중단 예정(deprecated)입니다. 새로운 `/api/model/openai` 엔드포인트를 사용하세요.
 
 OpenAI API를 통해 텍스트 생성, 이미지 생성 등의 기능을 수행합니다.
 
@@ -63,6 +295,8 @@ Authorization: Bearer {idToken}
 }
 ```
 
+> **참고**: 이미지 생성 요청에서 `prompt`, `n`, `size`는 모두 필수 파라미터입니다.
+
 #### 응답 (텍스트 생성)
 
 ```json
@@ -91,7 +325,7 @@ Authorization: Bearer {idToken}
 
 > **참고**: OpenAI API를 통해 생성된 이미지 URL은 생성 후 **24시간** 동안만 유효합니다. 이 시간이 지나면 URL에 접근할 수 없으며 이미지는 자동으로 삭제됩니다. 장기 보관이 필요한 경우 생성된 이미지를 다운로드하여 `/api/storage/upload` 엔드포인트를 통해 GCS에 업로드해야 합니다.
 
-### 2. GCS에 파일 업로드
+### 3. GCS에 파일 업로드
 
 HTML 파일 등을 Google Cloud Storage에 업로드합니다.
 
@@ -122,7 +356,7 @@ Authorization: Bearer {idToken}
 
 - `content`: 업로드할 파일 내용(Base64 인코딩 등) (필수)
 - `fileName`: 저장할 파일명 (필수)
-- `contentType`: 파일의 MIME 타입 (선택, 기본값: "text/html")
+- `contentType`: 파일의 MIME 타입 (필수)
 
 #### 응답
 
@@ -146,7 +380,7 @@ Authorization: Bearer {idToken}
 - 모든 파일은 공개 버킷에 저장되며, 인증 없이 접근 가능한 공개 URL로 제공됩니다.
 - URL 형식: `https://storage.googleapis.com/버킷명/파일경로`
 
-### 3. URL에서 이미지 다운로드 및 GCS에 업로드
+### 4. URL에서 이미지 다운로드 및 GCS에 업로드
 
 URL에서 이미지를 다운로드하여 Google Cloud Storage에 업로드합니다. 이 엔드포인트는 CORS 문제를 우회하여 OpenAI API 등에서 제공하는 이미지 URL을 직접 처리할 수 있습니다.
 
@@ -175,9 +409,9 @@ Authorization: Bearer {idToken}
 
 #### 매개변수 설명
 
-- `imageUrl`: 다운로드할 이미지의 URL (필수)
+- `imageUrl`: 다운로드할 이미지 URL (필수)
 - `fileName`: 저장할 파일명 (필수)
-- `contentType`: 이미지의 MIME 타입 (선택, 기본값: "image/png")
+- `contentType`: 파일의 MIME 타입 (필수)
 
 #### 응답
 
@@ -199,7 +433,7 @@ Authorization: Bearer {idToken}
 - `CONTENT_TOO_LARGE`: 이미지 크기가 최대 허용 크기를 초과
 - `STORAGE_UPLOAD_ERROR`: 파일 업로드 중 오류
 
-### 4. 사용량 확인
+### 5. 사용량 확인
 
 현재 사용자의 API 호출 사용량을 확인합니다.
 
@@ -284,7 +518,7 @@ API 호출 중 오류가 발생하면 다음과 같은 형식의 응답이 반�
 - `/api/storage/upload`의 파일 내용(content) 최대 크기: **10MB**
 
 ### 응답 시간 제한
-- 텍스트 생성: 최대 60초
+- 텍스트 생성: 최대 50초
 - 이미지 생성: 최대 30초
 
 응답 시간이 초과되면 `REQUEST_TIMEOUT` 오류가 반환됩니다.

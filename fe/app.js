@@ -3,7 +3,7 @@
  * 수정이 필요한 경우 이 부분만 변경하세요.
  */
 // config.js에서 프롬프트 템플릿을 가져옵니다.
-import { firebaseConfig, apiEndpoints, LOCAL_STORAGE_KEYS, promptTemplates } from './config.js';
+import { firebaseConfig, apiEndpoints, LOCAL_STORAGE_KEYS, promptTemplates, modelSettings } from './config.js';
 import { initFirebaseAuth, loadUserUsage, googleLogin, logout } from './auth.js';
 
 // 이미지 URL 저장 
@@ -117,6 +117,9 @@ function populateFieldsFromLocalStorage() {
             const dallePromptOutput = document.getElementById('dalle-prompt');
             if (dallePromptOutput) dallePromptOutput.innerHTML = `<p>${step3Data.dalle}</p>`;
             prompts.dalle = step3Data.dalle;
+            
+            // 프롬프트 길이 업데이트
+            window.updateDallePromptLength && window.updateDallePromptLength();
         }
         
         if (step3Data.gpt4o) {
@@ -274,6 +277,11 @@ async function initialize() {
         // 가장 높은 완료 단계로 이동
         moveToHighestCompletedStep();
         
+        // DALL-E 프롬프트 길이 초기화
+        if (window.updateDallePromptLength) {
+            window.updateDallePromptLength();
+        }
+        
         // 참고: 로딩 인디케이터는 moveToHighestCompletedStep 함수에서 숨겨집니다.
     } catch (error) {
         console.error("앱 초기화 오류:", error);
@@ -323,6 +331,60 @@ function registerEventListeners() {
         const logoutButton = document.getElementById('logout-button');
         if (logoutButton) {
             logoutButton.addEventListener('click', logout);
+        }
+        
+        // DALL-E 프롬프트 길이 업데이트 함수
+        window.updateDallePromptLength = function() {
+            const dallePromptElement = document.getElementById('dalle-prompt');
+            let dallePromptText = '';
+            
+            // p 태그 내용 추출
+            if (dallePromptElement) {
+                const pTags = dallePromptElement.querySelectorAll('p');
+                if (pTags.length > 0) {
+                    // 모든 p 태그의 내용을 합침
+                    dallePromptText = Array.from(pTags).map(p => p.textContent || '').join('\n');
+                } else {
+                    // p 태그가 없으면 전체 내용 사용
+                    dallePromptText = dallePromptElement.textContent || '';
+                }
+                
+                // 카운터 요소가 없는 경우 생성
+                let promptCounter = document.getElementById('dalle-prompt-counter');
+                if (!promptCounter) {
+                    promptCounter = document.createElement('div');
+                    promptCounter.id = 'dalle-prompt-counter';
+                    promptCounter.className = 'absolute bottom-2 right-3 text-sm text-gray-500 bg-white px-1 py-0.5 border border-gray-200 rounded';
+                    dallePromptElement.appendChild(promptCounter);
+                }
+                
+                const charCount = dallePromptText.length;
+                
+                if (promptCounter) {
+                    promptCounter.textContent = `${charCount}/900 bytes`;
+                    
+                    // 글자 수에 따라 색상 변경
+                    if (charCount > 900) {
+                        promptCounter.classList.add('text-red-500');
+                        promptCounter.classList.remove('text-yellow-500');
+                        promptCounter.classList.remove('text-gray-500');
+                    } else if (charCount > 850) {
+                        promptCounter.classList.add('text-yellow-500');
+                        promptCounter.classList.remove('text-red-500');
+                        promptCounter.classList.remove('text-gray-500');
+                    } else {
+                        promptCounter.classList.remove('text-red-500');
+                        promptCounter.classList.remove('text-yellow-500');
+                        promptCounter.classList.add('text-gray-500');
+                    }
+                }
+            }
+        }
+        
+        // DALL-E 프롬프트 편집기 변경 이벤트 리스너 추가
+        const dallePromptEditor = document.getElementById('dalle-prompt-editor');
+        if (dallePromptEditor) {
+            dallePromptEditor.addEventListener('input', window.updateDallePromptLength);
         }
     } catch (error) {
         console.error("이벤트 리스너 등록 오류:", error);
@@ -567,39 +629,112 @@ async function generatePrompts() {
             .replace('{design_requirements}', designRequirementsPart) + 
             "\n\n반드시 JSON 형식으로 응답해주세요. 응답은 {\"dalle_prompt\": \"...\", \"gpt4o_prompt\": \"...\"}의 형식이어야 합니다.";
 
+        // Claude 대신 OpenAI GPT-4o 사용으로 변경
         const response = await callOpenAI('gpt-4o', systemPrompt, userPrompt);
         
         if (response) {
             try {
                 // JSON 응답 파싱 시도
                 let promptData;
+                let responseContent = response;
                 
-                // 코드 블록 내 JSON 추출 시도 (백틱으로 둘러싸인 JSON)
-                const jsonMatch = response.match(/```json\s*([\s\S]*?)\s*```/) || 
-                               response.match(/```\s*([\s\S]*?)\s*```/) ||
-                               response.match(/\{[\s\S]*\}/);
-                
-                if (jsonMatch) {
-                    let jsonContent = jsonMatch[1] || jsonMatch[0];
-                    jsonContent = jsonContent.replace(/```json|```/g, '').trim();
-                    try {
-                        promptData = JSON.parse(jsonContent);
-                    } catch (e) {
-                        // JSON 블록 파싱 실패, 전체 응답 시도
-                        promptData = JSON.parse(response);
+                // 응답이 객체 형태인지 확인하고 처리
+                try {
+                    const responseObj = JSON.parse(response);
+                    if (responseObj.success && responseObj.data && responseObj.data.content) {
+                        responseContent = responseObj.data.content;
+                        console.log("Gemini API 응답에서 content를 추출했습니다:", responseContent);
                     }
-                } else {
-                    promptData = JSON.parse(response);
+                } catch (e) {
+                    // 이미 문자열인 경우 그대로 사용
+                    console.log("응답이 이미 문자열 형태입니다");
+                }
+                
+                // 특별 케이스: HTML 코드를 포함한 JSON 처리
+                if (responseContent.includes("html") && responseContent.includes("body")) {
+                    // HTML이 포함된 JSON 수동 파싱
+                    try {
+                        const dalle_match = responseContent.match(/"dalle_prompt":\s*"([^"]*)"/);
+                        const gpt4o_start = responseContent.indexOf('"gpt4o_prompt":');
+                        
+                        if (dalle_match && gpt4o_start > -1) {
+                            promptData = {
+                                dalle_prompt: dalle_match[1],
+                                // 안내 메시지 대신 실제 HTML 코드를 저장
+                                gpt4o_prompt: responseContent.match(/<html>[\s\S]*<\/html>/i)[0]
+                            };
+                            
+                            console.log("HTML 코드 포함 응답 수동 파싱 성공");
+                        }
+                    } catch (e) {
+                        console.error("HTML 포함 JSON 수동 파싱 실패:", e);
+                    }
+                }
+                
+                // 기존 파싱 로직 유지 (수동 파싱 실패 시 사용)
+                if (!promptData) {
+                    // 코드 블록 내 JSON 추출 시도 (백틱으로 둘러싸인 JSON)
+                    const jsonMatch = responseContent.match(/```json\s*([\s\S]*?)\s*```/) || 
+                                   responseContent.match(/```\s*([\s\S]*?)\s*```/);
+                    
+                    if (jsonMatch) {
+                        let jsonContent = jsonMatch[1] || jsonMatch[0];
+                        jsonContent = jsonContent.replace(/```json|```/g, '').trim();
+                        try {
+                            promptData = JSON.parse(jsonContent);
+                        } catch (e) {
+                            console.error("JSON 블록 파싱 실패:", e);
+                            console.log("파싱 실패한 내용:", jsonContent);
+                            // 파싱 실패 시 기본값 사용
+                            showErrorModal("프롬프트 파싱에 실패했습니다. 기본값을 사용합니다.");
+                            promptData = {
+                                dalle_prompt: promptTemplates.prompt_generator_ai.default_dalle_prompt,
+                                gpt4o_prompt: promptTemplates.prompt_generator_ai.default_gpt4o_prompt
+                            };
+                        }
+                    } else {
+                        try {
+                            promptData = JSON.parse(responseContent);
+                        } catch (e) {
+                            console.error("전체 응답 파싱 실패:", e);
+                            console.log("파싱 실패한 내용:", responseContent);
+                            // 파싱 실패 시 기본값 사용
+                            showErrorModal("프롬프트 파싱에 실패했습니다. 기본값을 사용합니다.");
+                            promptData = {
+                                dalle_prompt: promptTemplates.prompt_generator_ai.default_dalle_prompt,
+                                gpt4o_prompt: promptTemplates.prompt_generator_ai.default_gpt4o_prompt
+                            };
+                        }
+                    }
                 }
                 
                 if (promptData.dalle_prompt) {
-                    prompts.dalle = promptData.dalle_prompt;
+                    // dalle_prompt가 배열인 경우
+                    if (Array.isArray(promptData.dalle_prompt)) {
+                        // 첫 번째 항목만 사용하거나 모든 항목을 문자열로 변환
+                        if (promptData.dalle_prompt.length > 0) {
+                            if (typeof promptData.dalle_prompt[0] === 'object' && promptData.dalle_prompt[0].prompt) {
+                                // 배열 내 객체에서 prompt 필드 추출 (첫 번째 항목만)
+                                prompts.dalle = promptData.dalle_prompt[0].prompt;
+                            } else {
+                                // 모든 항목을 문자열로 변환
+                                prompts.dalle = JSON.stringify(promptData.dalle_prompt, null, 2);
+                            }
+                        } else {
+                            prompts.dalle = "DALL-E 프롬프트 배열이 비어 있습니다.";
+                        }
+                    } else {
+                        // 문자열인 경우 그대로 사용
+                        prompts.dalle = promptData.dalle_prompt;
+                    }
+                    
                     dallePromptOutput.innerHTML = marked.parse(prompts.dalle);
                     dallePromptEditor.value = prompts.dalle;
+                    window.updateDallePromptLength && window.updateDallePromptLength();
                 } else {
                     console.error('DALL-E 프롬프트가 JSON에 없음');
                     dallePromptOutput.innerHTML = "<p>DALL-E 프롬프트를 찾을 수 없습니다.</p>";
-                    prompts.dalle = "웹사이트를 위한 시각적으로 매력적인 이미지를 생성해주세요. 1024x1024 해상도의 고품질 이미지가 필요합니다.";
+                    prompts.dalle = promptTemplates.prompt_generator_ai.default_dalle_prompt;
                     dallePromptEditor.value = prompts.dalle;
                 }
                 
@@ -610,38 +745,39 @@ async function generatePrompts() {
                 } else {
                     console.error('GPT-4o 프롬프트가 JSON에 없음');
                     gpt4oPromptOutput.innerHTML = "<p>GPT-4o 프롬프트를 찾을 수 없습니다.</p>";
-                    prompts.gpt4o = "제공된 이미지 URL을 사용하여 단일 HTML 파일로 정적 웹사이트를 생성해주세요. 인라인 CSS 스타일링, 반응형 디자인, 부드러운 스크롤링을 포함하세요. 특히 단순 모바일 환경 기준으로 작성 후 확대하는 것이 아니라, 일정 크기 이상에서는 pc 혹은 태블릿을 대상으로 하여 별도로 디자인 해 주세요. DALL-E 3가 생성한 이미지의 URL을 플레이스홀더(예: \"header_image_url\", \"hero_image_url\", \"content_image_1_url\" 등)로 사용하세요.";
+                    prompts.gpt4o = promptTemplates.prompt_generator_ai.default_gpt4o_prompt;
                     gpt4oPromptEditor.value = prompts.gpt4o;
                 }
                 
+                // 현재 단계(2단계) 데이터 저장
+                saveStepToLocalStorage(2, {
+                    planning: planningPart,
+                    designRequirements: designRequirementsPart
+                });
+                
+                // 현재 단계(3단계) 데이터 저장
+                saveStepToLocalStorage(3, {
+                    dalle: prompts.dalle,
+                    gpt4o: prompts.gpt4o
+                });
+                
+                // 사용량 정보 갱신
+                loadUserUsage();
+                
+                showStep(3);
             } catch (error) {
-                console.error('JSON 파싱 실패:', error, '원본 응답:', response);
+                console.error('JSON 파싱 실패:', error);
                 
                 // 파싱 실패시 기본값 제공
                 dallePromptOutput.innerHTML = "<p>프롬프트 파싱에 실패했습니다. 기본값을 사용합니다.</p>";
                 gpt4oPromptOutput.innerHTML = "<p>프롬프트 파싱에 실패했습니다. 기본값을 사용합니다.</p>";
                 
-                prompts.dalle = "웹사이트를 위한 시각적으로 매력적인 이미지를 생성해주세요. 1024x1024 해상도의 고품질 이미지가 필요합니다.";
-                prompts.gpt4o = "제공된 이미지 URL을 사용하여 단일 HTML 파일로 정적 웹사이트를 생성해주세요. 인라인 CSS 스타일링, 반응형 디자인, 부드러운 스크롤링을 포함하세요. 특히 단순 모바일 환경 기준으로 작성 후 확대하는 것이 아니라, 일정 크기 이상에서는 pc 혹은 태블릿을 대상으로 하여 별도로 디자인 해 주세요. DALL-E 3가 생성한 이미지의 URL을 플레이스홀더(예: \"header_image_url\", \"hero_image_url\", \"content_image_1_url\" 등)로 사용하세요.";
+                prompts.dalle = promptTemplates.prompt_generator_ai.default_dalle_prompt;
+                prompts.gpt4o = promptTemplates.prompt_generator_ai.default_gpt4o_prompt;
                 
                 dallePromptEditor.value = prompts.dalle;
                 gpt4oPromptEditor.value = prompts.gpt4o;
             }
-            
-            // 현재 단계(2단계) 데이터 저장
-            saveStepToLocalStorage(2, {
-                planning: planningPart,
-                designRequirements: designRequirementsPart
-            });
-            
-            // 현재 단계(3단계) 데이터 저장
-            saveStepToLocalStorage(3, {
-                dalle: prompts.dalle,
-                gpt4o: prompts.gpt4o
-            });
-            
-            // 사용량 정보 갱신
-            loadUserUsage();
             
             showStep(3);
         }
@@ -685,8 +821,8 @@ async function generateImages() {
         // 5개의 이미지 생성
         prompts.dalle = currentDallePrompt;
         
-        // 헤더 이미지
-        const headerPrompt = promptTemplates.dalle_template.user_prompt_template.replace('{dalle_prompt}', prompts.dalle + "\n\n이것은 헤더 배너 이미지입니다.");
+        // 헤더 이미지 - config의 템플릿 사용
+        const headerPrompt = promptTemplates.image_generation.header_template.replace('{dalle_prompt}', prompts.dalle);
         const headerResponse = await generateImage(headerPrompt);
         if (headerResponse && headerResponse.data && headerResponse.data[0].url) {
             imageUrls.header.url = headerResponse.data[0].url;
@@ -694,39 +830,39 @@ async function generateImages() {
             if (headerImage) headerImage.style.display = 'block';
         }
         
-        // 히어로 이미지
-        const heroPrompt = promptTemplates.dalle_template.user_prompt_template.replace('{dalle_prompt}', prompts.dalle + "\n\n이것은 히어로 배너 이미지입니다.");
+        // 히어로 이미지 - config의 템플릿 사용
+        const heroPrompt = promptTemplates.image_generation.hero_template.replace('{dalle_prompt}', prompts.dalle);
         const heroResponse = await generateImage(heroPrompt);
         if (heroResponse && heroResponse.data && heroResponse.data[0].url) {
             imageUrls.hero.url = heroResponse.data[0].url;
-            if (heroImage) heroImage.src = imageUrls.hero.url;
+            if (heroImage) heroImage.src = heroResponse.data[0].url;
             if (heroImage) heroImage.style.display = 'block';
         }
         
-        // 컨텐츠 이미지 1
-        const content1Prompt = promptTemplates.dalle_template.user_prompt_template.replace('{dalle_prompt}', prompts.dalle + "\n\n이것은 웹사이트 컨텐츠용 이미지입니다.");
+        // 컨텐츠 이미지 1 - config의 템플릿 사용
+        const content1Prompt = promptTemplates.image_generation.content1_template.replace('{dalle_prompt}', prompts.dalle);
         const content1Response = await generateImage(content1Prompt);
         if (content1Response && content1Response.data && content1Response.data[0].url) {
             imageUrls.content1.url = content1Response.data[0].url;
-            if (contentImage1) contentImage1.src = imageUrls.content1.url;
+            if (contentImage1) contentImage1.src = content1Response.data[0].url;
             if (contentImage1) contentImage1.style.display = 'block';
         }
         
-        // 컨텐츠 이미지 2
-        const content2Prompt = promptTemplates.dalle_template.user_prompt_template.replace('{dalle_prompt}', prompts.dalle + "\n\n이것은 웹사이트 컨텐츠용 이미지로, 첫 번째 이미지와 다른 스타일입니다.");
+        // 컨텐츠 이미지 2 - config의 템플릿 사용
+        const content2Prompt = promptTemplates.image_generation.content2_template.replace('{dalle_prompt}', prompts.dalle);
         const content2Response = await generateImage(content2Prompt);
         if (content2Response && content2Response.data && content2Response.data[0].url) {
             imageUrls.content2.url = content2Response.data[0].url;
-            if (contentImage2) contentImage2.src = imageUrls.content2.url;
+            if (contentImage2) contentImage2.src = content2Response.data[0].url;
             if (contentImage2) contentImage2.style.display = 'block';
         }
         
-        // 컨텐츠 이미지 3
-        const content3Prompt = promptTemplates.dalle_template.user_prompt_template.replace('{dalle_prompt}', prompts.dalle + "\n\n이것은 웹사이트 컨텐츠용 이미지로, 이전 이미지들과 다른 주제입니다.");
+        // 컨텐츠 이미지 3 - config의 템플릿 사용
+        const content3Prompt = promptTemplates.image_generation.content3_template.replace('{dalle_prompt}', prompts.dalle);
         const content3Response = await generateImage(content3Prompt);
         if (content3Response && content3Response.data && content3Response.data[0].url) {
             imageUrls.content3.url = content3Response.data[0].url;
-            if (contentImage3) contentImage3.src = imageUrls.content3.url;
+            if (contentImage3) contentImage3.src = content3Response.data[0].url;
             if (contentImage3) contentImage3.style.display = 'block';
         }
         
@@ -761,99 +897,73 @@ async function generateFinalCode() {
         // 현재 단계(4단계) 데이터 저장
         saveStepToLocalStorage(4, { ...imageUrls });
         
-        // HTML 생성 프롬프트 설정
-        const htmlGenerationPrompt = `
-# 웹사이트 생성 요청
-다음 정보를 기반으로 완전한 HTML 정적 웹사이트를 생성해주세요:
+        // HTML 생성 프롬프트 설정 - GPT-4o 프롬프트 직접 사용
+        const userPrompt = promptTemplates.gpt4o_template.user_prompt_template
+            .replace('{gpt4o_content}', prompts.gpt4o);
+            
+        // 이미지 URL 정보 추가
+        const imageContent = `
+## 이미지 플레이스홀더 정보:
+- 헤더 이미지: ${imageUrls.header.url || '이미지 없음'}
+- 히어로 이미지: ${imageUrls.hero.url || '이미지 없음'}
+- 콘텐츠 이미지 1: ${imageUrls.content1.url || '이미지 없음'}
+- 콘텐츠 이미지 2: ${imageUrls.content2.url || '이미지 없음'}
+- 콘텐츠 이미지 3: ${imageUrls.content3.url || '이미지 없음'}
 
-## 기획 문서
-${planningDoc}
+웹사이트 코드에서는 실제 이미지 URL을 직접 사용해주세요. 모든 HTML, CSS, JavaScript를 단일 파일로 통합하여 완전한 웹사이트를 생성해주세요.`;
 
-## 이미지 플레이스홀더
-이미지는 다음 플레이스홀더를 사용해 주세요:
-헤더 이미지: ${imageUrls.header.placeholder}
-히어로 이미지: ${imageUrls.hero.placeholder}
-컨텐츠 이미지 1: ${imageUrls.content1.placeholder}
-컨텐츠 이미지 2: ${imageUrls.content2.placeholder}
-컨텐츠 이미지 3: ${imageUrls.content3.placeholder}
-
-## 추가 지침
-${prompts.gpt4o}
-
-이미지는 반드시 위의 플레이스홀더를 img 태그의 src 속성에 그대로 사용해주세요. 예: <img src="${imageUrls.header.placeholder}">
-모든 내용을 단일 HTML 파일에 넣어 반환해주세요.
-`;
-
-        // OpenAI API를 사용하여 GPT-4o로 HTML 코드 생성
-        const systemPrompt = promptTemplates.gpt4o_template.system_prompt;
-        const userPrompt = promptTemplates.gpt4o_template.user_prompt_template.replace('{html_generation_prompt}', htmlGenerationPrompt);
+        const finalPrompt = userPrompt + '\n\n' + imageContent;
         
-        const response = await callOpenAI('gpt-4o', systemPrompt, userPrompt);
+        // Gemini API 호출하여 HTML 코드 생성
+        const systemPrompt = promptTemplates.gpt4o_template.system_prompt;
+        const response = await callGoogleGemini('gemini-1.5-pro', finalPrompt);
         
         if (response) {
-            // 로딩 끝
-            showLoading(false);
-            
             try {
                 let htmlCode = '';
                 
-                // 1단계: 응답에서 코드 블록 추출 (```json ... ```)
-                const codeBlockMatch = response.match(/```json\s*([\s\S]*?)\s*```/) || 
-                                    response.match(/```\s*([\s\S]*?)\s*```/);
-                
-                if (codeBlockMatch) {
-                    // 2단계: 코드 블록에서 JSON 파싱
+                // JSON 파싱 시도
+                if (response.trim().startsWith('{') && response.includes('html_code')) {
                     try {
-                        const jsonContent = codeBlockMatch[1].trim();
-                        const parsedJson = JSON.parse(jsonContent);
-                        
-                        // 3단계: html_code 키 값 추출
-                        if (parsedJson.html_code) {
-                            // 이스케이프된 문자열 처리
-                            htmlCode = parsedJson.html_code
-                                        .replace(/\\n/g, '\n')
-                                        .replace(/\\"/g, '"')
-                                        .replace(/\\'/g, "'")
-                                        .replace(/\\t/g, '\t');
+                        const jsonResponse = JSON.parse(response);
+                        if (jsonResponse.html_code) {
+                            htmlCode = jsonResponse.html_code;
                         } else {
-                            // html_code 키가 없는 경우 HTML 태그 추출 시도
-                            const htmlMatch = jsonContent.match(/<html[\s\S]*<\/html>/i) || 
-                                           jsonContent.match(/<body[\s\S]*<\/body>/i) || 
-                                           jsonContent.match(/<!DOCTYPE[\s\S]*<\/html>/i);
-                            
-                            if (htmlMatch) {
-                                htmlCode = htmlMatch[0];
-                            } else {
-                                htmlCode = jsonContent;
-                            }
-                        }
-                    } catch (jsonError) {
-                        console.error('JSON 파싱 실패:', jsonError);
-                        // JSON 파싱 실패 시 HTML 태그 검색
-                        const htmlMatch = response.match(/<html[\s\S]*<\/html>/i) || 
-                                        response.match(/<body[\s\S]*<\/body>/i) || 
-                                        response.match(/<!DOCTYPE[\s\S]*<\/html>/i);
-                        
-                        if (htmlMatch) {
-                            htmlCode = htmlMatch[0];
-                        } else {
+                            console.error('HTML 코드 필드가 JSON에 없음');
                             htmlCode = response;
                         }
+                    } catch (e) {
+                        console.error('JSON 파싱 실패:', e);
+                        htmlCode = response;
                     }
                 } else {
-                    // 코드 블록이 없는 경우 직접 HTML 태그 검색
-                    const htmlMatch = response.match(/<html[\s\S]*<\/html>/i) || 
-                                    response.match(/<body[\s\S]*<\/body>/i) || 
-                                    response.match(/<!DOCTYPE[\s\S]*<\/html>/i);
-                    
-                    if (htmlMatch) {
-                        htmlCode = htmlMatch[0];
+                    // 코드 블록 추출 시도
+                    const codeBlockMatch = response.match(/```(?:html)?\s*([\s\S]*?)\s*```/);
+                    if (codeBlockMatch) {
+                        htmlCode = codeBlockMatch[1].trim();
                     } else {
                         htmlCode = response;
                     }
                 }
                 
-                // TextContent로 코드 표시
+                // 내부 플레이스홀더를 외부 플레이스홀더로 변환
+                const placeholderMap = {
+                    '__IMG_HEADER__': imageUrls.header.placeholder,
+                    '__IMG_HERO__': imageUrls.hero.placeholder,
+                    '__IMG_CONTENT1__': imageUrls.content1.placeholder,
+                    '__IMG_CONTENT2__': imageUrls.content2.placeholder,
+                    '__IMG_CONTENT3__': imageUrls.content3.placeholder
+                };
+                
+                // 모든 플레이스홀더 변환
+                Object.entries(placeholderMap).forEach(([externalPlaceholder, internalPlaceholder]) => {
+                    htmlCode = htmlCode.replaceAll(externalPlaceholder, internalPlaceholder);
+                });
+                
+                // 로딩 표시 끝
+                showLoading(false);
+                
+                // generatedCode 엘리먼트에 하이라이트 처리된 HTML 코드 표시
                 generatedCode.textContent = htmlCode;
                 
                 // 생성된 코드를 브라우저에서 저장하고 다운로드 링크 설정
@@ -1021,7 +1131,7 @@ async function deployToBackend() {
                     let htmlCode = step5Data.html;
                     
                     // 이미지 URL 교체
-                    Object.keys(step4Data).forEach((key) => {
+                    Object.keys(step4Data).forEach(key => {
                         if (step4Data[key] && typeof step4Data[key] === 'object' && step4Data[key].url) {
                             // 플레이스홀더 패턴 ({{IMAGE_KEY}})
                             const placeholder = step4Data[key].placeholder;
@@ -1224,10 +1334,20 @@ function applyPlanningEdit() {
 }
 
 function applyDalleEdit() {
-    const newContent = dallePromptEditor.value.trim();
-    if (newContent) {
-        prompts.dalle = newContent;
-        dallePromptOutput.innerHTML = marked.parse(prompts.dalle);
+    const dallePromptEditor = document.getElementById('dalle-prompt-editor');
+    if (dallePromptEditor) {
+        const editedPrompt = dallePromptEditor.value.trim();
+        document.getElementById('dalle-prompt').innerHTML = `<p>${editedPrompt}</p>`;
+        // 프롬프트 저장
+        prompts.dalle = editedPrompt;
+        // 현재 단계 데이터 업데이트
+        saveStepToLocalStorage(3, {
+            dalle: editedPrompt,
+            gpt4o: prompts.gpt4o
+        });
+        
+        // 프롬프트 길이 업데이트
+        window.updateDallePromptLength();
     }
 }
 
@@ -1288,6 +1408,89 @@ async function callOpenAI(model, systemPrompt, userPrompt) {
     }
 }
 
+// Google Gemini API 텍스트 생성 호출 함수 (백엔드 API 사용)
+async function callGoogleGemini(model, content) {
+    // 현재 인증된 사용자의 ID 토큰 가져오기
+    const user = firebase.auth().currentUser;
+    if (!user) {
+        throw new Error('로그인이 필요합니다.');
+    }
+    
+    const idToken = await user.getIdToken();
+    
+    const response = await fetch(`${apiEndpoints.backend.base}${apiEndpoints.backend.google}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({
+            type: "text",
+            model: model,
+            contents: [content],
+        })
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Google Gemini API 호출 중 오류가 발생했습니다.');
+    }
+
+    const result = await response.json();
+    
+    // 간소화된 백엔드 응답 구조에 맞게 파싱
+    if (result.success && result.data && result.data.content) {
+        return result.data.content;
+    } else {
+        throw new Error('Google Gemini 응답 데이터 형식이 올바르지 않습니다.');
+    }
+}
+
+// Anthropic Claude API 텍스트 생성 호출 함수 (백엔드 API 사용)
+async function callAnthropicClaude(model, systemPrompt, userPrompt) {
+    // 현재 인증된 사용자의 ID 토큰 가져오기
+    const user = firebase.auth().currentUser;
+    if (!user) {
+        throw new Error('로그인이 필요합니다.');
+    }
+    
+    const idToken = await user.getIdToken();
+    
+    const response = await fetch(`${apiEndpoints.backend.base}${apiEndpoints.backend.anthropic}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({
+            type: "text",
+            model: model,
+            messages: [
+                {
+                    "role": "user",
+                    "content": userPrompt
+                }
+            ],
+            max_tokens: 4000,
+            temperature: 0.7
+        })
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Anthropic Claude API 호출 중 오류가 발생했습니다.');
+    }
+
+    const result = await response.json();
+    
+    // 간소화된 백엔드 응답 구조에 맞게 파싱
+    if (result.success && result.data && result.data.content) {
+        return result.data.content;
+    } else {
+        throw new Error('Anthropic Claude 응답 데이터 형식이 올바르지 않습니다.');
+    }
+}
+
 // OpenAI API 이미지 생성 호출 함수 (백엔드 API 사용)
 async function callOpenAIImage(prompt, size = "1024x1024") {
     // 현재 인증된 사용자의 ID 토큰 가져오기
@@ -1306,6 +1509,7 @@ async function callOpenAIImage(prompt, size = "1024x1024") {
         },
         body: JSON.stringify({
             type: "image",
+            model: modelSettings.openai.image,
             prompt: prompt,
             n: 1,
             size: size,
@@ -1346,76 +1550,15 @@ function loadScript(url) {
     });
 }
 
-// 문자열을 안전하게 Base64로 인코딩 (한글 등 유니코드 문자 지원)
-function safeBase64Encode(str) {
-    // encodeURIComponent를 사용하여 유니코드 문자를 URI 안전한 형태로 변환 후 btoa 적용
-    return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g,
-        function toSolidBytes(match, p1) {
-            return String.fromCharCode('0x' + p1);
-        }));
-}
-
-// Blob을 Base64로 변환
-function blobToBase64(blob) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            const base64String = reader.result;
-            // data:image/png;base64, 부분 제거하여 순수 base64 문자열만 반환
-            resolve(base64String.split(',')[1]);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-    });
-}
-
-// 이미지 URL에서 DOM 이미지 요소를 통해 캔버스로 변환하는 함수
-async function getImageFromUrl(imageUrl, key) {
-    return new Promise((resolve, reject) => {
-        // 이미지 요소 생성
-        const img = document.createElement('img');
-        
-        // 이미지 로드 완료 이벤트
-        img.onload = function() {
-            try {
-                // 캔버스 생성 및 이미지 그리기
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                canvas.width = img.width;
-                canvas.height = img.height;
-                ctx.drawImage(img, 0, 0);
-                
-                // 캔버스에서 Base64 데이터 추출
-                const base64Data = canvas.toDataURL('image/png').replace(/^data:image\/png;base64,/, '');
-                resolve(base64Data);
-            } catch (err) {
-                reject(new Error(`이미지 처리 실패 (${key}): ${err.message}`));
-            }
-        };
-        
-        // 이미지 로드 실패 이벤트
-        img.onerror = function() {
-            reject(new Error(`이미지 로드 실패 (${key})`));
-        };
-        
-        // Cross-Origin 속성 설정 시도
-        img.crossOrigin = 'Anonymous';
-        
-        // 타임아웃 설정 (5초)
-        const timeoutId = setTimeout(() => {
-            img.src = ''; // 로드 중단
-            reject(new Error(`이미지 로드 타임아웃 (${key})`));
-        }, 5000);
-        
-        // 이미지 소스 설정 (쿼리 파라미터 추가로 캐시 방지)
-        img.src = imageUrl + (imageUrl.includes('?') ? '&' : '?') + 'cacheBust=' + Date.now();
-        
-        // 이미지가 이미 캐시에 있는 경우 onload가 호출되지 않을 수 있으므로 확인
-        if (img.complete) {
-            clearTimeout(timeoutId);
-            img.onload();
-        }
-    });
+// 템플릿 파일 로드 함수
+async function loadTemplateFile(templatePath) {
+  try {
+    const response = await fetch(templatePath);
+    return await response.text();
+  } catch (error) {
+    console.error('템플릿 로드 오류:', error);
+    return null;
+  }
 }
 
 // 캐시 초기화 함수
