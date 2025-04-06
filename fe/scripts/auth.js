@@ -3,7 +3,7 @@
  * 사용자 회원가입, 로그인, 로그아웃 및 상태 관리를 담당합니다.
  */
 
-import { firebaseConfig, apiEndpoints } from './config.js';
+import { firebaseConfig, apiEndpoints } from '../config.js';
 
 // Firebase 인증 초기화
 export function initFirebaseAuth() {
@@ -16,6 +16,12 @@ export function initFirebaseAuth() {
         if (user) {
             // 사용자가 로그인한 경우
             console.log('사용자 로그인됨:', user.email);
+            
+            // ID 토큰 가져와서 localStorage에 저장
+            user.getIdToken().then(idToken => {
+                localStorage.setItem('idToken', idToken);
+                console.log('ID 토큰이 저장되었습니다');
+            });
             
             // 로그인 섹션 업데이트
             document.getElementById('not-logged-in').classList.add('hidden');
@@ -114,7 +120,7 @@ export async function loadUserUsage(userId = null) {
 }
 
 // 로그인 오류 메시지 표시
-function showLoginError(message) {
+export function showLoginError(message) {
     // 모달 사용
     if (window.showErrorModal) {
         window.showErrorModal(message);
@@ -124,7 +130,45 @@ function showLoginError(message) {
 }
 
 // 인증 오류 메시지 초기화
-function clearAuthErrors() {
+export function clearAuthErrors() {
     // 모달 사용하므로 더 이상 DOM 요소를 직접 초기화할 필요 없음
     // 아무 작업도 수행하지 않음
+}
+
+// 인증 상태 확인 함수
+export async function checkAuth() {
+    return new Promise((resolve) => {
+        // 이미 초기화되어 있는지 확인
+        if (!firebase.apps.length) {
+            try {
+                firebase.initializeApp(firebaseConfig);
+            } catch (error) {
+                console.error('Firebase 초기화 오류:', error);
+            }
+        }
+        
+        // 현재 인증 상태 확인
+        const unsubscribe = firebase.auth().onAuthStateChanged((user) => {
+            unsubscribe(); // 콜백 한 번만 실행하도록 해제
+            
+            if (user) {
+                // 사용자가 로그인한 경우
+                console.log('사용자 로그인됨:', user.email);
+                
+                // ID 토큰 갱신
+                user.getIdToken().then(idToken => {
+                    localStorage.setItem('idToken', idToken);
+                    console.log('ID 토큰이 갱신되었습니다');
+                    resolve(user);
+                }).catch(error => {
+                    console.error('ID 토큰 획득 오류:', error);
+                    resolve(null);
+                });
+            } else {
+                // 사용자가 로그인하지 않은 경우
+                console.log('로그인되지 않은 상태입니다');
+                resolve(null);
+            }
+        });
+    });
 }

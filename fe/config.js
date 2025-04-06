@@ -17,7 +17,7 @@ export const firebaseConfig = {
 export const apiEndpoints = {
     backend: {
         base: ENV.BACKEND_API_URL,
-        openai: "/api/openai",
+        openai: "/api/model/openai",
         google: "/api/model/google", 
         anthropic: "/api/model/anthropic",
         storage: "/api/storage/upload",
@@ -41,6 +41,14 @@ export const modelSettings = {
 
 // 로컬 스토리지 키 상수
 export const LOCAL_STORAGE_KEYS = {
+    // 기본 키 (소문자 - 실제 로컬 스토리지에 있는 형태)
+    step1: 'ai-website-generator-step1',
+    step2: 'ai-website-generator-step2',
+    step3: 'ai-website-generator-step3',
+    step4: 'ai-website-generator-step4',
+    step5: 'ai-website-generator-step5',
+    
+    // 호환성을 위한 대문자 키 매핑 (코드 호환성 유지)
     STEP1: 'ai-website-generator-step1',
     STEP2: 'ai-website-generator-step2',
     STEP3: 'ai-website-generator-step3',
@@ -89,9 +97,28 @@ export const promptTemplates = {
 {user_description}
 
 응답은 마크다운 형식으로 제공해주시고, "## 웹사이트 기획서"와 "## 디자인 요구사항" 두 개의 주요 섹션으로 나누어 상세하게 작성해주세요. 
-이 기획서는 다음 단계에서 DALL-E 이미지 생성과 HTML 코드 생성을 위한 중요한 기초 자료로 사용되므로, 구체적이고 명확한 지침을 포함해야 합니다.`
-    },
+이 기획서는 다음 단계에서 DALL-E 이미지 생성과 HTML 코드 생성을 위한 중요한 기초 자료로 사용되므로, 구체적이고 명확한 지침을 포함해야 합니다.`,
 
+        /**
+         * 기본 DALL-E 프롬프트
+         */
+        default_dalle_prompt: `프로페셔널한 웹사이트를 위한 시각적으로 매력적인 이미지를 생성해주세요. 
+현대적인 미니멀리즘 디자인으로, 고해상도 1024x1024 이미지로 제작해주세요. 
+텍스트나 로고는 포함하지 말고 순수한 시각적 요소만 표현해주세요.`,
+
+        /**
+         * 기본 GPT-4o 프롬프트
+         */
+        default_gpt4o_prompt: `제공된 이미지 플레이스홀더를 활용하여 프로페셔널한 수준의 단일 HTML 파일 웹사이트를 생성해주세요.
+웹사이트는 다음 요소를 포함해야 합니다:
+1. 현대적이고 미니멀한 디자인 언어
+2. 반응형 레이아웃(모바일, 태블릿, 데스크탑 지원)
+3. 부드러운 스크롤 효과와 트랜지션
+4. 최적화된 타이포그래피 및 색상 대비
+5. 모든 사용자를 위한 접근성 고려
+모든 스타일은 인라인 CSS로 포함하고, 필요한 JavaScript도 HTML 파일 내에 통합해주세요.`
+    },
+    
     // 2단계: 프롬프트 생성기 템플릿
     prompt_generator_ai: {
         /**
