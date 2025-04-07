@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flowbang - 아이디어</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="../styles/common.css">
+    <link rel="stylesheet" href="../styles/idea.css">
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="max-w-7xl mx-auto px-4 py-8 mt-8">
+        <!-- 로고 및 제목 -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800">Flowbang</h1>
+            <p class="text-gray-600 mt-2">AI 기반 웹사이트 생성 도구</p>
+        </div>
+
+        <!-- 입력 섹션 - 상단 배치 -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-8 idea-input-container">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">아이디어 입력</h2>
+            <div class="space-y-4" id="controls-container">
+                <div>
+                    <label for="idea-input" class="block text-sm font-medium text-gray-700 mb-2">
+                        웹사이트 아이디어를 설명해주세요
+                    </label>
+                    <textarea id="idea-input" rows="6" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="예: 쇼핑몰 웹사이트를 만들고 싶어요. 미니멀한 디자인으로, 모바일에서도 잘 보이게 해주세요..."></textarea>
+                </div>
+                
+                <!-- 모델 선택기와 생성 버튼을 같은 줄에 배치 -->
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between sm:space-x-4 space-y-4 sm:space-y-0">
+                    <!-- 모델 선택기 컨테이너 -->
+                    <div id="model-selector-container" class="w-full sm:flex-grow"></div>
+                    
+                    <!-- 기획안 생성 버튼 -->
+                    <button id="generate-btn" class="w-full sm:w-auto px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 whitespace-nowrap idea-action-btn">
+                        기획안 생성
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 코드 생성 안내 및 이동 버튼 -->
+        <div id="next-step-guide" class="p-4 mt-6 mb-6 bg-indigo-50 rounded-lg border border-indigo-100 shadow-sm hidden">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between">
+                <div class="flex items-start space-x-3 mb-3 sm:mb-0">
+                    <i class="fas fa-code text-indigo-600 text-xl mt-1"></i>
+                    <div>
+                        <h4 class="font-medium text-indigo-800">다음 단계: 웹사이트 코드 생성</h4>
+                        <p class="text-sm text-indigo-700 mt-1">기획서와 디자인 요구사항이 준비되었습니다. 이제 웹사이트 코드를 생성해보세요!<br>아래 기획서와 디자인 요구사항을 확인하고 원한다면 직접 수정할 수 있습니다.</p>
+                    </div>
+                </div>
+                <a href="generate.html" class="px-5 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-sm inline-flex items-center">
+                    <i class="fas fa-arrow-right mr-2"></i> 코드 생성 페이지로
+                </a>
+            </div>
+        </div>
+
+        <!-- 결과 섹션 - 하단 배치 -->
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">생성된 기획안</h2>
+            <div id="result-section" class="hidden">
+                <div class="space-y-4">
+                    <!-- 웹사이트 기획서 -->
+                    <div class="p-4 bg-gray-50 rounded-lg">
+                        <h3 class="font-medium text-gray-800 mb-2">웹사이트 기획서 <span class="text-xs text-gray-500">(마크다운 형식으로 직접 편집 가능)</span></h3>
+                        <div class="prose prose-sm max-w-none">
+                            <textarea id="planning-doc" class="w-full p-4 border border-gray-300 rounded-lg h-80 resize-y font-mono text-sm leading-relaxed focus:ring-2 focus:ring-blue-500 focus:border-transparent markdown-editor" placeholder="생성된 웹사이트 기획서가 여기에 표시됩니다..."></textarea>
+                        </div>
+                    </div>
+                    
+                    <!-- 디자인 요구사항 -->
+                    <div class="p-4 bg-gray-50 rounded-lg">
+                        <h3 class="font-medium text-gray-800 mb-2">디자인 요구사항 <span class="text-xs text-gray-500">(마크다운 형식으로 직접 편집 가능)</span></h3>
+                        <div class="prose prose-sm max-w-none">
+                            <textarea id="design-requirements" class="w-full p-4 border border-gray-300 rounded-lg h-80 resize-y font-mono text-sm leading-relaxed focus:ring-2 focus:ring-blue-500 focus:border-transparent markdown-editor" placeholder="생성된 디자인 요구사항이 여기에 표시됩니다..."></textarea>
+                        </div>
+                    </div>
+                    
+                    <!-- 저장 및 초기화 버튼 -->
+                    <div class="flex justify-end space-x-2">
+                        <button id="save-btn" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 idea-action-btn">
+                            변경사항 저장
+                        </button>
+                        <button id="clear-btn" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 idea-action-btn">
+                            저장된 값으로 되돌리기
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div id="empty-state" class="text-center py-8 text-gray-500">
+                <i class="fas fa-lightbulb text-4xl mb-4"></i>
+                <p>아이디어를 입력하고 기획안을 생성해보세요</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 마크다운 라이브러리 -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
+    <!-- 설정 및 스크립트 -->
+    <script type="module" src="../configs/config.js"></script>
+    <script type="module" src="../scripts/common.js"></script>
+    <script type="module" src="../scripts/idea.js"></script>
+</body>
+</html> 

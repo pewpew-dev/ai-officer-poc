@@ -1,0 +1,87 @@
+/**
+ * 코드 생성 및 배포 페이지 스타일시트
+ * 코드 생성 및 배포 페이지에 특화된 스타일 정의
+ */
+
+/* 탭 버튼 */
+#code-tabs button {
+    transition: all 0.3s ease;
+}
+
+#code-tabs button:hover {
+    background-color: rgba(59, 130, 246, 0.05);
+}
+
+/* 코드 뷰어 */
+#code-preview {
+    font-family: 'Consolas', 'Monaco', 'Andale Mono', monospace;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    tab-size: 4;
+    white-space: pre;
+}
+
+/* 이미지 아이템 카드 */
+.image-item {
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.image-item:hover {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    transform: translateY(-2px);
+}
+
+.image-preview {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.image-info {
+    padding: 1rem;
+}
+
+.image-key {
+    font-family: 'Consolas', 'Monaco', 'Andale Mono', monospace;
+    background-color: #edf2f7;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    color: #2d3748;
+}
+
+.image-desc {
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+    color: #4a5568;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* 버튼 애니메이션 */
+button:active:not(:disabled) {
+    transform: scale(0.98);
+}
+
+/* 배포 버튼 비활성화 스타일 */
+#deploy-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+/* 복사 버튼 애니메이션 */
+@keyframes copiedAnimation {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+}
+
+.copied {
+    animation: copiedAnimation 0.5s ease;
+    background-color: #10B981 !important; /* 성공 색상으로 변경 */
+} 

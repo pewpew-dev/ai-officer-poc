@@ -123,17 +123,12 @@ Authorization: Bearer {idToken}
   "type": "text",
   "model": "gemini-pro",
   "contents": [
-    {
-      "role": "user",
-      "parts": [
-        {
-          "text": "사용자 프롬프트"
-        }
-      ]
-    }
+    "사용자 프롬프트"
   ]
 }
 ```
+
+> **참고**: Google Gemini API는 contents 배열의 첫 번째 항목(`contents[0]`)을 직접 모델에 전달합니다. 따라서 단순 문자열을 배열에 담아 전송합니다.
 
 ##### 요청 본문 (멀티모달 입력을 통한 텍스트 생성)
 
@@ -142,23 +137,18 @@ Authorization: Bearer {idToken}
   "type": "text",
   "model": "gemini-pro-vision",
   "contents": [
+    "이미지에 대해 설명해주세요",
     {
-      "role": "user",
-      "parts": [
-        {
-          "text": "이 이미지에 대해 설명해주세요"
-        },
-        {
-          "inline_data": {
-            "mime_type": "image/jpeg",
-            "data": "BASE64_ENCODED_IMAGE_DATA"
-          }
-        }
-      ]
+      "inlineData": {
+        "data": "BASE64_ENCODED_IMAGE_DATA",
+        "mimeType": "image/jpeg"
+      }
     }
   ]
 }
 ```
+
+> **참고**: 멀티모달 입력의 경우 텍스트와 이미지 데이터를 배열 형태로 함께 전달합니다. 이미지는 Base64로 인코딩된 데이터여야 합니다.
 
 ##### 응답 (텍스트 생성)
 

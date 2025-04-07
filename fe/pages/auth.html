@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flowbang - 로그인</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="../styles/common.css">
+    <link rel="stylesheet" href="../styles/auth.css">
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="max-w-7xl mx-auto px-4 py-8 mt-8">
+        <!-- 로고 및 제목 -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800">Flowbang</h1>
+            <p class="text-gray-600 mt-2">AI 기반 웹사이트 생성 도구</p>
+        </div>
+
+        <!-- 로그인 컨텐츠 -->
+        <div class="bg-white rounded-lg shadow-lg p-6 max-w-md mx-auto auth-container">
+            <!-- 로그인 상태 디버그 정보 -->
+            <div id="debug-info" class="mb-6 p-4 bg-gray-100 rounded-lg text-xs">
+                <h2 class="text-gray-700 font-semibold mb-2">디버그 정보</h2>
+                <pre id="debug-content" class="whitespace-pre-wrap"></pre>
+            </div>
+
+            <!-- 사용량 정보 -->
+            <div id="usage-info" class="hidden mb-6 p-4 bg-blue-50 rounded-lg">
+                <h2 class="text-lg font-semibold text-blue-800 mb-2">사용량 정보</h2>
+                <div class="space-y-2">
+                    <p class="text-sm text-blue-700">사용량: <span id="used-credits">0</span> / <span id="total-credits">0</span></p>
+                    <p class="text-sm text-blue-700">남은 크레딧: <span id="remaining-credits">0</span></p>
+                </div>
+            </div>
+
+            <!-- 로그인 섹션 -->
+            <div id="login-section" class="space-y-4">
+                <p class="text-gray-600 mb-4">Flowbang 서비스를 이용하려면 로그인이 필요합니다.</p>
+                <button id="google-login" class="w-full py-3 px-4 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center justify-center space-x-2">
+                    <i class="fab fa-google text-red-600"></i>
+                    <span>Google로 로그인</span>
+                </button>
+            </div>
+
+            <!-- 로그인된 상태 -->
+            <div id="logged-in-section" class="hidden space-y-4">
+                <div class="p-4 bg-green-50 rounded-lg">
+                    <h2 class="text-lg font-semibold text-green-800 mb-2">로그인됨</h2>
+                    <p class="text-sm text-green-700">이메일: <span id="user-email"></span></p>
+                </div>
+                <button id="logout-btn" class="w-full py-3 px-4 bg-red-100 text-red-700 rounded-lg hover:bg-red-200">
+                    로그아웃
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    
+    <!-- 설정 및 스크립트 -->
+    <script type="module" src="../configs/config.js"></script>
+    <script type="module" src="../scripts/common.js"></script>
+    <script type="module" src="../scripts/auth.js"></script>
+</body>
+</html> 

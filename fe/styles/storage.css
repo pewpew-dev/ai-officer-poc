@@ -1,0 +1,165 @@
+/**
+ * 스토리지 페이지 스타일시트
+ * 로컬 스토리지 관리 관련 스타일
+ */
+
+/* 스토리지 항목 컨테이너 */
+.storage-item {
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    transition: box-shadow 0.2s;
+}
+
+.storage-item:hover {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* 항목 헤더 */
+.storage-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.storage-item-title {
+    font-weight: 600;
+    color: #2d3748;
+}
+
+/* 버튼 스타일 */
+.view-btn, 
+.edit-btn, 
+.delete-btn {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 0.25rem;
+    transition: all 0.2s;
+}
+
+.view-btn {
+    background-color: #ebf8ff;
+    color: #3182ce;
+}
+
+.view-btn:hover {
+    background-color: #bee3f8;
+}
+
+.edit-btn {
+    background-color: #f0fff4;
+    color: #38a169;
+}
+
+.edit-btn:hover {
+    background-color: #c6f6d5;
+}
+
+.delete-btn {
+    background-color: #fff5f5;
+    color: #e53e3e;
+}
+
+.delete-btn:hover {
+    background-color: #fed7d7;
+}
+
+/* 데이터 상태 표시 */
+.status-indicator {
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+}
+
+.status-saved {
+    color: #38a169;
+}
+
+.status-empty {
+    color: #e53e3e;
+}
+
+.status-date {
+    color: #718096;
+    font-style: italic;
+}
+
+/* 데이터 미리보기 */
+.data-preview {
+    font-size: 0.75rem;
+    color: #718096;
+    font-style: italic;
+    margin-top: 0.25rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
+/* 액션 버튼 컨테이너 */
+.storage-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+/* 전체 초기화 버튼 */
+#clear-all-btn {
+    background-color: #e53e3e;
+    color: white;
+    transition: background-color 0.2s;
+}
+
+#clear-all-btn:hover {
+    background-color: #c53030;
+}
+
+/* 마크다운 변환 스타일 */
+.markdown-content h2 {
+    font-size: 1.25rem;
+    font-weight: bold;
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.markdown-content h3 {
+    font-size: 1.125rem;
+    font-weight: bold;
+    margin-top: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.markdown-content li {
+    margin-left: 1rem;
+    list-style-type: disc;
+}
+
+.markdown-content strong {
+    font-weight: bold;
+}
+
+.markdown-content em {
+    font-style: italic;
+}
+
+.markdown-content code {
+    background-color: #f7fafc;
+    padding: 0 0.25rem;
+    border-radius: 0.25rem;
+    font-family: monospace;
+}
+
+.markdown-content pre {
+    background-color: #f7fafc;
+    padding: 0.5rem;
+    border-radius: 0.25rem;
+    margin: 0.5rem 0;
+    overflow-x: auto;
+}
+
+.markdown-content pre code {
+    padding: 0;
+    background-color: transparent;
+    white-space: pre;
+} 

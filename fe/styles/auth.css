@@ -1,0 +1,88 @@
+/**
+ * 인증 페이지 스타일시트
+ * 로그인 및 인증 관련 스타일
+ */
+
+/* 로그인 컨테이너 스타일 */
+.auth-container {
+    max-width: 28rem;
+    margin: 0 auto;
+    padding: 2rem;
+    background-color: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* 디버그 정보 스타일 */
+#debug-info {
+    font-family: monospace;
+    font-size: 0.75rem;
+    background-color: #f7fafc;
+    border-radius: 0.25rem;
+    padding: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+#debug-content {
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+/* 사용량 정보 스타일 */
+#usage-info {
+    background-color: #ebf8ff;
+    border-radius: 0.25rem;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+#usage-info h2 {
+    color: #2b6cb0;
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+#usage-info p {
+    color: #4299e1;
+    font-size: 0.875rem;
+    margin-bottom: 0.25rem;
+}
+
+/* 로그인 버튼 스타일 */
+#google-login {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background-color: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.375rem;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+#google-login:hover {
+    background-color: #f7fafc;
+}
+
+#google-login i {
+    color: #e53e3e;
+    margin-right: 0.5rem;
+}
+
+/* 로그아웃 버튼 스타일 */
+#logout-btn {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background-color: #fed7d7;
+    color: #c53030;
+    border-radius: 0.375rem;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+#logout-btn:hover {
+    background-color: #feb2b2;
+} 

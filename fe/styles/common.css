@@ -1,0 +1,114 @@
+/**
+ * 공통 스타일시트
+ * 모든 페이지에서 공유되는 스타일 정의
+ */
+
+/* 네비게이션 컴포넌트 스타일 */
+.navigation-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background-color: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.nav-item {
+    padding: 0.75rem 1rem;
+    display: inline-block;
+    color: #4a5568;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s, background-color 0.2s;
+}
+
+.nav-item:hover {
+    color: #2b6cb0;
+    background-color: rgba(66, 153, 225, 0.05);
+}
+
+.nav-item.active {
+    color: #2b6cb0;
+    border-bottom: 2px solid #2b6cb0;
+}
+
+/* 토스트 알림 스타일 및 애니메이션 */
+#toast-notification {
+    position: fixed;
+    bottom: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    z-index: 50;
+    max-width: 28rem;
+    text-align: center;
+    color: white;
+}
+
+#toast-notification.bg-success {
+    background-color: #38a169; /* Green - Success */
+}
+
+#toast-notification.bg-error {
+    background-color: #e53e3e; /* Red - Error */
+}
+
+#toast-notification.bg-warning {
+    background-color: #d69e2e; /* Yellow - Warning */
+}
+
+#toast-notification.bg-info {
+    background-color: #3182ce; /* Blue - Info */
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translate(-50%, 20px);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+}
+
+@keyframes fadeOutDown {
+    from {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+    to {
+        opacity: 0;
+        transform: translate(-50%, 20px);
+    }
+}
+
+#toast-notification.show {
+    display: block;
+    animation: fadeInUp 0.3s ease forwards;
+}
+
+#toast-notification.hide {
+    animation: fadeOutDown 0.3s ease forwards;
+}
+
+/* 스크롤바 스타일 */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #c5c5c5;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #a5a5a5;
+} 

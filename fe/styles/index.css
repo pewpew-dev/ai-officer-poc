@@ -1,0 +1,286 @@
+/**
+ * 인덱스 페이지 스타일시트
+ * 메인 페이지에 특화된 스타일 정의
+ */
+
+/* 프롬프트 모달 애니메이션 */
+#prompt-modal {
+    transition: opacity 0.3s, transform 0.3s, box-shadow 0.3s, border-color 0.3s;
+    backdrop-filter: blur(3px);
+    /* 드래그 관련 스타일 추가 */
+    user-select: none;
+    position: relative;
+}
+
+#prompt-modal.hidden {
+    opacity: 0;
+    transform: translateY(20px);
+    pointer-events: none;
+}
+
+#prompt-modal:not(.hidden) {
+    transform: translateY(0);
+}
+
+/* 드래그 가능한 영역 스타일 */
+#prompt-modal .bg-white {
+    cursor: grab;
+    position: relative;
+}
+
+/* 빈 공간에 마우스를 올렸을 때 드래그 가능함을 알리는 스타일 */
+#prompt-modal .bg-white:hover::before {
+    content: "\f0b2"; /* fa-move 아이콘 */
+    font-family: "Font Awesome 5 Free";
+    font-weight: 900;
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    color: #6b7280;
+    font-size: 16px;
+    opacity: 0.7;
+    pointer-events: none;
+    z-index: 10;
+}
+
+/* 드래그 중인 모달에 표시할 스타일 */
+#prompt-modal.dragging {
+    opacity: 0.9;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    cursor: grabbing !important;
+}
+
+#prompt-modal.dragging .bg-white {
+    cursor: grabbing !important;
+}
+
+/* 입력 영역 커서 스타일 */
+#improvement-prompt {
+    cursor: text;
+}
+
+/* 버튼 커서 스타일 */
+#submit-prompt, #revert-changes-btn, #forward-changes-btn {
+    cursor: pointer;
+}
+
+/* 프롬프트 포커스/호버 상태 */
+#prompt-modal:focus-within,
+#prompt-modal:hover {
+    opacity: 1 !important;
+}
+
+/* 프롬프트 버튼 애니메이션 */
+#prompt-btn {
+    transition: all 0.3s ease;
+}
+
+#prompt-btn:hover {
+    transform: scale(1.1);
+}
+
+/* 닫기 효과를 위한 클래스 */
+#prompt-btn.close-mode {
+    background-color: rgb(220, 38, 38) !important;
+}
+
+#prompt-btn.close-mode:hover {
+    background-color: rgb(185, 28, 28) !important;
+    animation: pulse-red 1.5s infinite;
+}
+
+/* 닫기 모드 시 아이콘 변경 */
+#prompt-btn.close-mode .fa-wand-magic-sparkles::before {
+    content: "\f00d"; /* 닫기(X) 아이콘으로 변경 */
+}
+
+/* 제출 버튼 스타일 */
+#submit-prompt {
+    position: relative;
+    overflow: hidden;
+}
+
+#submit-prompt:active {
+    transform: scale(0.95);
+}
+
+#submit-prompt:hover .fas {
+    animation: sparkle 1s ease;
+}
+
+/* 버튼 아이콘 스타일 */
+.fa-wand-magic-sparkles {
+    font-size: 1.1rem;
+}
+
+/* 사용량 정보 스타일 */
+#usage-info {
+    transition: all 0.3s ease;
+    min-width: 120px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* 히스토리 상태 정보 스타일 */
+#history-info {
+    transition: all 0.3s ease;
+    min-width: 120px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    text-align: right;
+}
+
+#history-position {
+    font-family: monospace;
+    font-weight: 600;
+    color: #3b82f6;
+}
+
+/* 모델 선택기 컨테이너 스타일 */
+#prompt-model-selector-container {
+    min-width: 120px;
+}
+
+/* HTML 미리보기 관련 스타일 */
+#preview-container {
+    transition: opacity 0.5s ease;
+}
+
+#preview-container.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+#preview-frame {
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
+/* 웹사이트 소개 화면 스타일 */
+#empty-state-container {
+    transition: opacity 0.5s ease;
+}
+
+#empty-state-container.hidden {
+    display: none;
+}
+
+/* 소개 카드 애니메이션 */
+#empty-state-container .bg-blue-50 {
+    transition: all 0.3s ease;
+}
+
+#empty-state-container .bg-blue-50:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+/* 시작하기 버튼 애니메이션 */
+#empty-state-container a.bg-blue-600 {
+    transition: all 0.3s ease;
+}
+
+#empty-state-container a.bg-blue-600:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+}
+
+/* 미리보기 모드 스타일 */
+#main-content {
+    transition: opacity 0.5s ease;
+}
+
+/* 버튼 아이콘 스타일 */
+.fa-edit, .fa-arrow-left, .fa-undo-alt, .fa-redo-alt {
+    font-size: 0.9rem;
+}
+
+/* 버튼 공통 스타일 */
+#revert-changes-btn, #forward-changes-btn, #submit-prompt {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+/* 되돌리기 버튼 공통 스타일 */
+#revert-changes-btn, #forward-changes-btn {
+    background-color: #6b7280;
+}
+
+#revert-changes-btn:hover:not([disabled]), 
+#forward-changes-btn:hover:not([disabled]) {
+    background-color: #4b5563;
+}
+
+/* 비활성화된 버튼 스타일 */
+#revert-changes-btn[disabled], #forward-changes-btn[disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+#revert-changes-btn:not([disabled]):active, 
+#forward-changes-btn:not([disabled]):active,
+#submit-prompt:active {
+    transform: scale(0.92);
+}
+
+/* 뒤로 되돌리기 버튼 스타일 */
+#revert-changes-btn:not([disabled]):hover .fas {
+    animation: spin-counter-clockwise 0.8s ease;
+}
+
+/* 앞으로 되돌리기 버튼 스타일 */
+#forward-changes-btn:not([disabled]):hover .fas {
+    animation: spin-clockwise 0.8s ease;
+}
+
+/* 되돌리기 아이콘 애니메이션 */
+@keyframes spin-counter-clockwise {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(-360deg);
+    }
+}
+
+/* 앞으로 가기 아이콘 애니메이션 */
+@keyframes spin-clockwise {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* 마법 스파클 아이콘 애니메이션 */
+@keyframes sparkle {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.2);
+        opacity: 0.8;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* 빨간색 펄스 애니메이션 (닫기 모드) */
+@keyframes pulse-red {
+    0% {
+        box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(220, 38, 38, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
+    }
+} 

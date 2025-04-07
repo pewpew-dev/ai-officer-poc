@@ -1,174 +1,173 @@
-/**
- * Firebase 인증 관련 기능
- * 사용자 회원가입, 로그인, 로그아웃 및 상태 관리를 담당합니다.
- */
+import { firebaseConfig } from '../configs/config.js';
+import { apiEndpoints } from '../configs/config.js';
+import { LOCAL_STORAGE_KEYS } from '../configs/config.js';
+import { showToast, callSecureApi } from './common.js';
 
-import { firebaseConfig, apiEndpoints } from '../config.js';
-
-// Firebase 인증 초기화
-export function initFirebaseAuth() {
-    if (!firebase.apps.length) {
+// Firebase 초기화 함수
+export function initializeFirebase() {
+    // Firebase가 아직 초기화되지 않았다면 초기화
+    if (window.firebase && !firebase.apps.length) {
+        console.log('Firebase 초기화');
         firebase.initializeApp(firebaseConfig);
     }
-    
-    // 인증 상태 변경 감지
-    firebase.auth().onAuthStateChanged(user => {
-        if (user) {
-            // 사용자가 로그인한 경우
-            console.log('사용자 로그인됨:', user.email);
-            
-            // ID 토큰 가져와서 localStorage에 저장
-            user.getIdToken().then(idToken => {
-                localStorage.setItem('idToken', idToken);
-                console.log('ID 토큰이 저장되었습니다');
-            });
-            
-            // 로그인 섹션 업데이트
-            document.getElementById('not-logged-in').classList.add('hidden');
-            document.getElementById('logged-in').classList.remove('hidden');
-            
-            // 사용자 이메일 표시
-            document.getElementById('user-email').textContent = user.email;
-            
-            // 사용량 정보 로드
-            loadUserUsage(user.uid);
-        } else {
-            // 사용자가 로그아웃한 경우
-            console.log('사용자 로그아웃됨');
-            
-            // 로그인 섹션 업데이트
-            document.getElementById('not-logged-in').classList.remove('hidden');
-            document.getElementById('logged-in').classList.add('hidden');
-        }
-    });
-    
-    // Google 로그인 버튼에 이벤트 리스너 추가
-    document.getElementById('google-login-button').addEventListener('click', googleLogin);
-    
-    // 로그아웃 버튼에 이벤트 리스너 추가
-    document.getElementById('logout-button').addEventListener('click', logout);
-    
-    // 오류 메시지 초기화
-    clearAuthErrors();
 }
+
+// 초기화 즉시 실행
+initializeFirebase();
+
+// DOM 요소
+const loginSection = document.getElementById('login-section');
+const loggedInSection = document.getElementById('logged-in-section');
+const usageInfo = document.getElementById('usage-info');
+const googleLoginBtn = document.getElementById('google-login');
+const logoutBtn = document.getElementById('logout-btn');
+const userEmailSpan = document.getElementById('user-email');
+const usedCreditsSpan = document.getElementById('used-credits');
+const totalCreditsSpan = document.getElementById('total-credits');
+const remainingCreditsSpan = document.getElementById('remaining-credits');
+const debugContent = document.getElementById('debug-content');
 
 // Google 로그인
-export async function googleLogin() {
+googleLoginBtn?.addEventListener('click', async () => {
     try {
-        clearAuthErrors();
         const provider = new firebase.auth.GoogleAuthProvider();
-        await firebase.auth().signInWithPopup(provider);
+        const result = await firebase.auth().signInWithPopup(provider);
+        const user = result.user;
+        
+        // ID 토큰 저장
+        const idToken = await user.getIdToken();
+        localStorage.setItem(LOCAL_STORAGE_KEYS.auth, idToken);
+        
+        // 사용자 정보 표시
+        if (userEmailSpan) userEmailSpan.textContent = user.email;
+        if (loginSection) loginSection.classList.add('hidden');
+        if (loggedInSection) loggedInSection.classList.remove('hidden');
+        
+        // 사용량 정보 조회
+        await fetchUsageInfo();
+
+        // 이전에 저장된 페이지가 있으면 해당 페이지로, 없으면 홈으로 리다이렉션
+        setTimeout(() => {
+            const redirectUrl = localStorage.getItem('redirect_after_login') || 'index.html';
+            localStorage.removeItem('redirect_after_login'); // 사용 후 삭제
+            window.location.href = redirectUrl;
+        }, 1000); // 1초 후 리다이렉션 (사용자가 로그인 완료를 확인할 시간을 줌)
     } catch (error) {
-        console.error('Google 로그인 오류:', error);
-        showLoginError(`로그인 실패: ${error.message}`);
+        console.error('로그인 오류:', error);
+        showToast('로그인 중 오류가 발생했습니다: ' + error.message, 'error');
     }
-}
+});
 
 // 로그아웃
-export async function logout() {
+logoutBtn?.addEventListener('click', async () => {
     try {
         await firebase.auth().signOut();
+        localStorage.removeItem(LOCAL_STORAGE_KEYS.auth);
+        if (loginSection) loginSection.classList.remove('hidden');
+        if (loggedInSection) loggedInSection.classList.add('hidden');
+        if (usageInfo) usageInfo.classList.add('hidden');
+        showToast('로그아웃되었습니다.', 'success');
     } catch (error) {
         console.error('로그아웃 오류:', error);
+        showToast('로그아웃 중 오류가 발생했습니다: ' + error.message, 'error');
     }
+});
+
+/**
+ * 로그인 상태를 확인하고 로그인되지 않은 경우 로그인 페이지로 리다이렉트
+ * @returns {boolean} 로그인 상태
+ */
+export function checkAuthState() {
+    console.log('로그인 상태 확인 (auth.js)');
+    const idToken = localStorage.getItem(LOCAL_STORAGE_KEYS.auth);
+    if (!idToken) {
+        console.log('로그인 정보 없음, 로그인 페이지로 이동');
+        window.location.href = 'auth.html';
+        return false;
+    }
+    console.log('로그인 정보 확인됨');
+    return true;
 }
 
-// 사용자 사용량 정보 로드
-export async function loadUserUsage(userId = null) {
+// 사용량 정보 조회
+async function fetchUsageInfo() {
     try {
-        const usageElement = document.getElementById('user-usage');
-        
-        // 현재 로그인한 사용자의 ID 토큰 가져오기
-        const user = firebase.auth().currentUser;
-        if (!user) {
-            usageElement.textContent = "로그인이 필요합니다";
+        // DOM 요소 확인
+        if (!usageInfo || !usedCreditsSpan || !totalCreditsSpan || !remainingCreditsSpan) {
             return;
         }
         
-        // userId가 제공되지 않은 경우 현재 로그인한 사용자의 ID 사용
-        const uid = userId || user.uid;
-        
-        const idToken = await user.getIdToken();
-        
-        // 백엔드 API에서 사용량 정보 가져오기
-        const response = await fetch(`${apiEndpoints.backend.base}${apiEndpoints.backend.usage}?uid=${uid}`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${idToken}`
-            }
-        });
-        
-        if (response.ok) {
-            const responseData = await response.json();
-            // 응답 구조: {"success":true,"data":{"used":0,"limit":10000,"remaining":10000}}
-            if (responseData.success && responseData.data) {
-                const usageData = responseData.data;
-                // 사용량 표시 (남은 크레딧 / 총 크레딧)
-                usageElement.textContent = `${usageData.remaining} / ${usageData.limit} 크레딧`;
+        try {
+            // API 호출 함수 사용 (common.js에서 import)
+            const data = await callSecureApi(apiEndpoints.backend.usage, 'GET');
+            
+            if (data.success) {
+                const { used, limit, remaining } = data.data;
+                usedCreditsSpan.textContent = used;
+                totalCreditsSpan.textContent = limit;
+                remainingCreditsSpan.textContent = remaining;
+                usageInfo.classList.remove('hidden');
             } else {
-                usageElement.textContent = "사용량 정보를 불러올 수 없습니다";
+                throw new Error(data.error?.message || '사용량 정보 조회 실패');
             }
-        } else {
-            // API 오류 발생 시 기본값 표시
-            usageElement.textContent = "사용량 정보를 불러올 수 없습니다";
+        } catch (error) {
+            console.error('사용량 정보 조회 오류:', error);
         }
     } catch (error) {
-        console.error('사용량 정보 로드 오류:', error);
-        document.getElementById('user-usage').textContent = "사용량 정보를 불러올 수 없습니다";
+        console.error('사용량 정보 조회 오류:', error);
     }
 }
 
-// 로그인 오류 메시지 표시
-export function showLoginError(message) {
-    // 모달 사용
-    if (window.showErrorModal) {
-        window.showErrorModal(message);
-    } else {
-        console.error('로그인 오류:', message);
-    }
-}
-
-// 인증 오류 메시지 초기화
-export function clearAuthErrors() {
-    // 모달 사용하므로 더 이상 DOM 요소를 직접 초기화할 필요 없음
-    // 아무 작업도 수행하지 않음
-}
-
-// 인증 상태 확인 함수
-export async function checkAuth() {
-    return new Promise((resolve) => {
-        // 이미 초기화되어 있는지 확인
-        if (!firebase.apps.length) {
-            try {
-                firebase.initializeApp(firebaseConfig);
-            } catch (error) {
-                console.error('Firebase 초기화 오류:', error);
-            }
-        }
+// 디버그 정보 업데이트
+function updateDebugInfo() {
+    if (!debugContent) return;
+    
+    try {
+        const authToken = localStorage.getItem(LOCAL_STORAGE_KEYS.auth);
+        debugContent.textContent = `AUTH 토큰: ${authToken ? authToken.substring(0, 10) + '...' : '없음'}\n`;
+        debugContent.textContent += `현재 경로: ${window.location.pathname}\n`;
         
-        // 현재 인증 상태 확인
-        const unsubscribe = firebase.auth().onAuthStateChanged((user) => {
-            unsubscribe(); // 콜백 한 번만 실행하도록 해제
+        // 로컬 스토리지 키 목록
+        const storageKeys = Object.keys(localStorage);
+        debugContent.textContent += `로컬 스토리지 키 (${storageKeys.length}): ${storageKeys.join(', ')}\n`;
+    } catch (error) {
+        console.error('디버그 정보 업데이트 오류:', error);
+    }
+}
+
+// 초기화 함수
+export function initAuth() {
+    // 디버그 정보 초기 업데이트
+    updateDebugInfo();
+
+    // 인증 상태 변경 감지
+    firebase.auth().onAuthStateChanged(async (user) => {
+        updateDebugInfo();
+        
+        if (user) {
+            // 로그인된 상태
+            if (userEmailSpan) userEmailSpan.textContent = user.email;
+            if (loginSection) loginSection.classList.add('hidden');
+            if (loggedInSection) loggedInSection.classList.remove('hidden');
             
-            if (user) {
-                // 사용자가 로그인한 경우
-                console.log('사용자 로그인됨:', user.email);
+            // ID 토큰 확인 및 갱신
+            try {
+                const idToken = await user.getIdToken(true);
+                localStorage.setItem(LOCAL_STORAGE_KEYS.auth, idToken);
                 
-                // ID 토큰 갱신
-                user.getIdToken().then(idToken => {
-                    localStorage.setItem('idToken', idToken);
-                    console.log('ID 토큰이 갱신되었습니다');
-                    resolve(user);
-                }).catch(error => {
-                    console.error('ID 토큰 획득 오류:', error);
-                    resolve(null);
-                });
-            } else {
-                // 사용자가 로그인하지 않은 경우
-                console.log('로그인되지 않은 상태입니다');
-                resolve(null);
+                // 사용량 정보 조회
+                await fetchUsageInfo();
+            } catch (error) {
+                console.error('토큰 갱신 오류:', error);
             }
-        });
+        } else {
+            // 로그아웃된 상태
+            if (loginSection) loginSection.classList.remove('hidden');
+            if (loggedInSection) loggedInSection.classList.add('hidden');
+            if (usageInfo) usageInfo.classList.add('hidden');
+        }
     });
 }
+
+// 페이지 로드 시 인증 초기화
+document.addEventListener('DOMContentLoaded', initAuth); 

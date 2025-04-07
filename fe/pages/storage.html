@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flowbang - 스토리지</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="../styles/common.css">
+    <link rel="stylesheet" href="../styles/storage.css">
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="max-w-7xl mx-auto px-4 py-8 mt-8">
+        <!-- 로고 및 제목 -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800">Flowbang</h1>
+            <p class="text-gray-600 mt-2">AI 기반 웹사이트 생성 도구</p>
+        </div>
+
+        <!-- 스토리지 키 목록 -->
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-semibold text-gray-800">로컬 스토리지 키</h2>
+                <div class="flex space-x-2 storage-actions">
+                    <button id="refresh-btn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                        <i class="fas fa-sync-alt mr-1"></i> 새로고침
+                    </button>
+                    <button id="clear-all-btn" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
+                        전체 초기화
+                    </button>
+                </div>
+            </div>
+
+            <div class="space-y-4">
+                <!-- 아이디어 -->
+                <div class="border rounded-lg p-4 storage-item">
+                    <h3 class="font-medium text-gray-800 mb-2 storage-item-title">아이디어</h3>
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <span class="text-sm text-gray-600">사용자가 입력한 아이디어</span>
+                                <div id="flowbang-idea-status" class="text-sm mt-1 status-indicator"></div>
+                            </div>
+                            <div class="space-x-2 storage-actions">
+                                <button class="view-btn px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200" data-key="flowbang-idea" data-key-name="idea">
+                                    보기
+                                </button>
+                                <button class="edit-btn px-3 py-1 text-sm bg-green-100 text-green-700 rounded hover:bg-green-200" data-key="flowbang-idea" data-key-name="idea">
+                                    수정
+                                </button>
+                                <button class="delete-btn px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200" data-key="flowbang-idea" data-key-name="idea">
+                                    삭제
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 기획안 -->
+                <div class="border rounded-lg p-4 storage-item">
+                    <h3 class="font-medium text-gray-800 mb-2 storage-item-title">기획안</h3>
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <span class="text-sm text-gray-600">AI 생성 기획서 및 디자인 요구사항</span>
+                                <div id="flowbang-planning-status" class="text-sm mt-1 status-indicator"></div>
+                            </div>
+                            <div class="space-x-2 storage-actions">
+                                <button class="view-btn px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200" data-key="flowbang-planning" data-key-name="planning">
+                                    보기
+                                </button>
+                                <button class="edit-btn px-3 py-1 text-sm bg-green-100 text-green-700 rounded hover:bg-green-200" data-key="flowbang-planning" data-key-name="planning">
+                                    수정
+                                </button>
+                                <button class="delete-btn px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200" data-key="flowbang-planning" data-key-name="planning">
+                                    삭제
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 코드 -->
+                <div class="border rounded-lg p-4 storage-item">
+                    <h3 class="font-medium text-gray-800 mb-2 storage-item-title">코드</h3>
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <span class="text-sm text-gray-600">AI 생성 HTML 코드</span>
+                                <div id="flowbang-code-status" class="text-sm mt-1 status-indicator"></div>
+                            </div>
+                            <div class="space-x-2 storage-actions">
+                                <button class="view-btn px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200" data-key="flowbang-code" data-key-name="code">
+                                    보기
+                                </button>
+                                <button class="edit-btn px-3 py-1 text-sm bg-green-100 text-green-700 rounded hover:bg-green-200" data-key="flowbang-code" data-key-name="code">
+                                    수정
+                                </button>
+                                <button class="delete-btn px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200" data-key="flowbang-code" data-key-name="code">
+                                    삭제
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 이미지 -->
+                <div class="border rounded-lg p-4 storage-item">
+                    <h3 class="font-medium text-gray-800 mb-2 storage-item-title">이미지</h3>
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <span class="text-sm text-gray-600">AI 생성 웹사이트 이미지</span>
+                                <div id="flowbang-image-status" class="text-sm mt-1 status-indicator"></div>
+                            </div>
+                            <div class="space-x-2 storage-actions">
+                                <button class="view-btn px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200" data-key="flowbang-image" data-key-name="image">
+                                    보기
+                                </button>
+                                <button class="edit-btn px-3 py-1 text-sm bg-green-100 text-green-700 rounded hover:bg-green-200" data-key="flowbang-image" data-key-name="image">
+                                    수정
+                                </button>
+                                <button class="delete-btn px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200" data-key="flowbang-image" data-key-name="image">
+                                    삭제
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 설정 및 스크립트 -->
+    <script type="module" src="../configs/config.js"></script>
+    <script type="module" src="../scripts/common.js"></script>
+    <script type="module" src="../scripts/storage.js"></script>
+</body>
+</html> 

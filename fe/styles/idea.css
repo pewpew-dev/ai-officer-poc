@@ -1,0 +1,58 @@
+/**
+ * 아이디어 페이지 스타일시트
+ * 아이디어 입력 및 결과 표시 관련 스타일
+ */
+
+/* 아이디어 입력 섹션 스타일 */
+.idea-input-container {
+    transition: all 0.3s ease;
+}
+
+/* 결과 섹션 애니메이션 */
+#result-section {
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+#result-section.hidden {
+    opacity: 0;
+    transform: translateY(10px);
+}
+
+/* 텍스트 영역 스타일 */
+textarea.markdown-editor {
+    font-family: monospace;
+    line-height: 1.5;
+    resize: vertical;
+}
+
+/* 버튼 호버 효과 */
+button.idea-action-btn {
+    transition: all 0.2s ease;
+}
+
+button.idea-action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* 빈 상태 스타일 */
+#empty-state {
+    transition: opacity 0.3s ease;
+}
+
+/* 저장 아이콘 애니메이션 */
+@keyframes savePulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.2);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+.save-animation {
+    animation: savePulse 0.5s ease;
+} 
