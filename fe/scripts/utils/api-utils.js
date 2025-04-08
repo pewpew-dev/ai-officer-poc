@@ -93,13 +93,13 @@ export async function callSecureApi(endpoint, method = 'GET', data = null) {
             console.log('인증 오류로 인해 로그인 페이지로 이동합니다.');
             
             // 현재 페이지 URL을 저장하여 로그인 후 다시 돌아올 수 있도록 함
-            const currentPage = window.location.pathname;
+            const currentPage = window.location.pathname.split('/').pop();
             if (!currentPage.includes('auth.html')) {
                 localStorage.setItem('redirect_after_login', currentPage);
             }
             
             // 로그인 페이지로 리다이렉트
-            window.location.href = '/pages/auth.html';
+            window.location.href = 'auth.html';
             return; // 리다이렉션 후 더 이상 진행하지 않음
         }
         

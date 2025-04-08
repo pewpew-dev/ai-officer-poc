@@ -82,6 +82,9 @@ export function checkAuthState() {
     const idToken = localStorage.getItem(LOCAL_STORAGE_KEYS.auth);
     if (!idToken) {
         console.log('로그인 정보 없음, 로그인 페이지로 이동');
+        // 현재 페이지 저장
+        const currentPage = window.location.pathname.split('/').pop();
+        localStorage.setItem('redirect_after_login', currentPage);
         window.location.href = 'auth.html';
         return false;
     }
