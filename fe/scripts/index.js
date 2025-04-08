@@ -704,13 +704,31 @@ function replaceImagePlaceholders(htmlCode, images) {
     // 각 이미지 플레이스홀더를 실제 URL로 대체
     images.forEach(image => {
         if (image.key && image.url) {
+            // 이스케이프 처리된 키 생성 (정규식 특수문자 처리)
+            const escapedKey = image.key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            
             // img 태그의 src 속성 대체
-            const srcRegex = new RegExp(`src=["']${image.key}["']`, 'g');
+            const srcRegex = new RegExp(`src=["']${escapedKey}["']`, 'g');
             processedHtml = processedHtml.replace(srcRegex, `src="${image.url}"`);
             
-            // 백그라운드 이미지 URL 대체 (예: style="background-image: url('PLACEHOLDER')")
-            const bgRegex = new RegExp(`url\\(["']${image.key}["']\\)`, 'g');
+            // CSS background-image URL 대체 (다양한 형태 처리)
+            // 1. url('KEY') - 작은따옴표
+            // 2. url("KEY") - 큰따옴표
+            // 3. url(KEY) - 따옴표 없음
+            // 4. url( 'KEY' ) - 공백과 따옴표 조합
+            // 5. url( "KEY" ) - 공백과 따옴표 조합
+            // 6. url( KEY ) - 공백만 있는 경우
+            const bgRegex = new RegExp(`url\\(\\s*['"]?${escapedKey}['"]?\\s*\\)`, 'g');
             processedHtml = processedHtml.replace(bgRegex, `url("${image.url}")`);
+            
+            // 인라인 스타일 내 background URL이 세미콜론 없이 끝나는 경우 처리
+            const inlineStyleRegex = new RegExp(`background(-image)?:\\s*url\\(\\s*['"]?${escapedKey}['"]?\\s*\\)`, 'g');
+            processedHtml = processedHtml.replace(inlineStyleRegex, `background$1: url("${image.url}")`);
+            
+            // 다른 속성에서도 키워드 대체가 필요한 경우를 위한 범용 패턴
+            // 예: content: url('KEY') 또는 list-style-image: url('KEY')
+            const otherUrlsRegex = new RegExp(`:\\s*url\\(\\s*['"]?${escapedKey}['"]?\\s*\\)`, 'g');
+            processedHtml = processedHtml.replace(otherUrlsRegex, `: url("${image.url}")`);
         }
     });
     
@@ -730,12 +748,20 @@ function loadAndShowHtmlPreview() {
             
             if (codeData && codeData.html_code) {
                 let htmlCode = codeData.html_code;
+                let imageKeyMap = {}; // 이미지 URL과 키 매핑을 저장할 객체
                 
                 // 이미지 데이터 가져오기
                 const savedImagesData = localStorage.getItem(LOCAL_STORAGE_KEYS.image);
                 if (savedImagesData) {
                     const imagesData = JSON.parse(savedImagesData);
                     if (imagesData && imagesData.images && imagesData.images.length > 0) {
+                        // 이미지 URL과 키 매핑 저장
+                        imagesData.images.forEach(img => {
+                            if (img.key && img.url) {
+                                imageKeyMap[img.url] = img.key;
+                            }
+                        });
+                        
                         // 이미지 플레이스홀더를 실제 URL로 대체
                         htmlCode = replaceImagePlaceholders(htmlCode, imagesData.images);
                     }
@@ -750,9 +776,126 @@ function loadAndShowHtmlPreview() {
                 // 미리보기 모드로 전환
                 showPreviewMode();
                 
-                // 리소스 해제를 위한 이벤트 추가
+                // iframe 로드 완료 후 이미지 요소에 클릭 이벤트 추가
                 previewFrame.onload = () => {
+                    // 리소스 해제
                     URL.revokeObjectURL(blobUrl);
+                    
+                    try {
+                        const iframeDoc = previewFrame.contentDocument || previewFrame.contentWindow.document;
+                        
+                        // iframe 내부에 스타일 추가
+                        const styleEl = iframeDoc.createElement('style');
+                        styleEl.textContent = `
+                            /* 이미지 편집 커서 및 호버 효과 */
+                            .editable-image {
+                                position: relative !important;
+                                transition: all 0.3s ease !important;
+                                cursor: pointer !important;
+                                z-index: 1 !important;
+                                isolation: isolate !important;
+                            }
+                            
+                            .editable-image:hover::before {
+                                content: '' !important;
+                                position: absolute !important;
+                                top: 0 !important;
+                                left: 0 !important;
+                                width: 100% !important;
+                                height: 100% !important;
+                                background-color: rgba(0, 255, 0, 0.3) !important;
+                                z-index: 2147483647 !important; /* 최대 z-index 값 */
+                                pointer-events: none !important;
+                                transform: translateZ(0) !important;
+                                will-change: transform !important;
+                                box-sizing: border-box !important;
+                                mix-blend-mode: overlay !important;
+                                display: block !important;
+                                visibility: visible !important;
+                                opacity: 1 !important;
+                            }
+                            
+                            .editable-image:hover {
+                                outline: 3px solid rgba(0, 255, 0, 0.7) !important;
+                                position: relative !important;
+                                z-index: 2147483646 !important; /* 최대 z-index 값 - 1 */
+                                transform: translateZ(0) !important;
+                                will-change: transform !important;
+                                box-shadow: 0 0 0 1px rgba(0, 255, 0, 0.3) !important;
+                                filter: none !important;
+                            }
+                            
+                            /* 부모 요소에 overflow 속성이 적용된 경우를 위한 추가 스타일 */
+                            *:has(.editable-image:hover) {
+                                overflow: visible !important;
+                            }
+                        `;
+                        iframeDoc.head.appendChild(styleEl);
+                        
+                        // 이미지 URL을 키로 변환하는 함수
+                        const findImageKey = (url) => {
+                            if (!url) return null;
+                            
+                            // URL에서 쿼리 파라미터 제거 (있을 경우)
+                            const cleanUrl = url.split('?')[0];
+                            
+                            // 정확한 매치 시도
+                            if (imageKeyMap[cleanUrl]) return imageKeyMap[cleanUrl];
+                            
+                            // 부분 매치 시도 (URL이 일부만 일치할 수 있음)
+                            for (const mappedUrl in imageKeyMap) {
+                                if (cleanUrl.includes(mappedUrl) || mappedUrl.includes(cleanUrl)) {
+                                    return imageKeyMap[mappedUrl];
+                                }
+                            }
+                            
+                            return null;
+                        };
+                        
+                        // img 태그 이벤트 추가
+                        const imgElements = iframeDoc.querySelectorAll('img');
+                        imgElements.forEach(img => {
+                            const imageKey = findImageKey(img.src);
+                            if (imageKey) {
+                                img.classList.add('editable-image');
+                                img.title = `클릭하여 ${imageKey} 이미지 관리`;
+                                img.addEventListener('click', (e) => {
+                                    navigateToImageManager(imageKey);
+                                });
+                            }
+                        });
+                        
+                        // CSS background-image를 가진 요소 찾기
+                        const allElements = iframeDoc.querySelectorAll('*');
+                        allElements.forEach(el => {
+                            const style = window.getComputedStyle(el);
+                            const backgroundImage = style.backgroundImage;
+                            
+                            if (backgroundImage && backgroundImage !== 'none') {
+                                // url("...") 형식에서 URL 추출
+                                const urlMatch = backgroundImage.match(/url\(['"](.*?)['"]\)/);
+                                if (urlMatch && urlMatch[1]) {
+                                    const imageUrl = urlMatch[1];
+                                    const imageKey = findImageKey(imageUrl);
+                                    
+                                    if (imageKey) {
+                                        el.classList.add('editable-image');
+                                        el.title = `클릭하여 ${imageKey} 이미지 관리`;
+                                        el.addEventListener('click', (event) => {
+                                            // 링크나 버튼 등의 기본 동작 방지를 위한 조건 체크
+                                            const clickedTag = event.target.tagName.toLowerCase();
+                                            if (clickedTag !== 'a' && clickedTag !== 'button' && 
+                                                clickedTag !== 'input' && clickedTag !== 'textarea') {
+                                                navigateToImageManager(imageKey);
+                                            }
+                                        });
+                                    }
+                                }
+                            }
+                        });
+                    } catch (e) {
+                        console.error('iframe 내 이미지 이벤트 설정 오류:', e);
+                    }
                 };
                 
                 return true;
@@ -764,6 +907,15 @@ function loadAndShowHtmlPreview() {
         console.error('HTML 미리보기 로드 오류:', error);
         return false;
     }
+}
+
+/**
+ * 이미지 관리 페이지로 이동하는 함수
+ * @param {string} imageKey - 선택할 이미지 키
+ */
+function navigateToImageManager(imageKey) {
+    // 이미지 키를 URL 파라미터로 전달하며 이미지 관리 페이지로 이동
+    window.location.href = `images.html?key=${encodeURIComponent(imageKey)}`;
 }
 
 /**
@@ -807,7 +959,8 @@ async function processImprovementRequest(improvementRequest) {
         let apiEndpoint;
         let requestData = {
             type: "text",
-            model: selectedModel.name
+            model: selectedModel.name,
+            max_tokens: 100000 // 기본 max_tokens 값 설정
         };
         
         switch (selectedModel.provider) {

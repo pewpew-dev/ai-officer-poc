@@ -88,11 +88,23 @@ export function getSelectedModel(name = 'selected-model') {
     const savedModelKey = localStorage.getItem(storageKey);
     
     if (savedModelKey) {
-        return getModelFromKey(savedModelKey);
+        const model = getModelFromKey(savedModelKey);
+        if (model) {
+            return model;
+        }
     }
     
-    // 저장된 값이 없으면 기본 모델 반환
-    return getDefaultModel('all', 'text');
+    // 저장된 값이 없으면 이름에 따라 적절한 기본 모델 반환
+    if (name.includes('image')) {
+        // 이미지 모델의 경우 OpenAI 이미지 모델만 반환
+        return getDefaultModel('openai', 'image');
+    } else if (name.includes('text')) {
+        // 텍스트 모델의 경우 기본 텍스트 모델 반환
+        return getDefaultModel('all', 'text');
+    } else {
+        // 기타 경우 기본 텍스트 모델 반환
+        return getDefaultModel('all', 'text');
+    }
 }
 
 /**

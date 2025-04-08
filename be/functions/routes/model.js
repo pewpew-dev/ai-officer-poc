@@ -32,13 +32,16 @@ const anthropic = new Anthropic({
   apiKey: functionConfig?.anthropic?.api_key
 });
 
+// API 기본 설정값 상수 정의
+const DEFAULT_MAX_TOKENS = 100000;
+
 // OpenAI API 호출 엔드포인트
 router.post('/openai', authenticateUser, checkUsage, apiTimeout, validateApiRequest({
   requiredFields: ['type'],
   specificValidation: validateOpenAIRequestType
 }), async (req, res) => {
   try {
-    const { type, model, messages, prompt, n, size } = req.body;
+    const { type, model, messages, prompt, n, size, max_tokens } = req.body;
     
     if (!model) {
       return createResponse(
@@ -69,6 +72,7 @@ router.post('/openai', authenticateUser, checkUsage, apiTimeout, validateApiRequ
         result = await openai.chat.completions.create({
           model,
           messages,
+          max_tokens: max_tokens || DEFAULT_MAX_TOKENS
         });
         
         // 텍스트 응답 구조 간소화
@@ -100,11 +104,22 @@ router.post('/openai', authenticateUser, checkUsage, apiTimeout, validateApiRequ
           );
         }
         
-        result = await openai.images.generate({
+        // DALL-E 3 API에 필요한 추가 파라미터 추출
+        const { quality, style } = req.body;
+        
+        // 이미지 생성 요청 구성
+        const imageRequestParams = {
+          model, // model 파라미터 유지
           prompt,
           n,
           size,
-        });
+        };
+        
+        // 선택적 파라미터 추가 (제공된 경우에만)
+        if (quality) imageRequestParams.quality = quality;
+        if (style) imageRequestParams.style = style;
+        
+        result = await openai.images.generate(imageRequestParams);
         
         // 이미지 응답 구조 간소화
         result = {
@@ -146,7 +161,7 @@ router.post('/google', authenticateUser, checkUsage, apiTimeout, validateApiRequ
   requiredFields: ['type', 'contents'],
 }), async (req, res) => {
   try {
-    const { type, model, contents } = req.body;
+    const { type, model, contents, max_tokens } = req.body;
     
     if (!model) {
       return createResponse(
@@ -168,8 +183,15 @@ router.post('/google', authenticateUser, checkUsage, apiTimeout, validateApiRequ
           model
         });
         
+        // 생성 구성 설정
+        const generationConfig = {
+          maxOutputTokens: max_tokens || DEFAULT_MAX_TOKENS
+        };
+        
         // 채팅 세션 생성
-        const chat = geminiModel.startChat();
+        const chat = geminiModel.startChat({
+          generationConfig
+        });
         
         // 멀티모달 또는 텍스트 전용 처리
         const response = await chat.sendMessage(contents[0]);
@@ -227,14 +249,14 @@ router.post('/anthropic', authenticateUser, checkUsage, apiTimeout, validateApiR
       );
     }
     
-    if (!max_tokens || !temperature) {
+    if (!temperature) {
       return createResponse(
         res, 
         400, 
         false, 
         null, 
         config.errorCodes.INVALID_REQUEST, 
-        'max_tokens와 temperature 필드가 필요합니다.'
+        'temperature 필드가 필요합니다.'
       );
     }
     
@@ -245,7 +267,7 @@ router.post('/anthropic', authenticateUser, checkUsage, apiTimeout, validateApiR
         const response = await anthropic.messages.create({
           model,
           messages,
-          max_tokens,
+          max_tokens: max_tokens || DEFAULT_MAX_TOKENS,
           temperature
         });
         

@@ -22,6 +22,8 @@ Authorization: Bearer {idToken}
   
   모든 요청에는 반드시 `type` 필드가 포함되어야 합니다. 멀티모달 입력(이미지와 텍스트 함께 입력)은 별도의 type 값이 아닌, 모델명과 입력 데이터 구조로 구분합니다.
 
+- **max_tokens**: 모델이 생성할 최대 토큰 수를 지정합니다. 지정하지 않으면 기본값 100,000이 사용됩니다. (선택 사항)
+
 ## API 엔드포인트
 
 ### 1. AI 모델 API 호출
@@ -58,9 +60,12 @@ Authorization: Bearer {idToken}
       "role": "user",
       "content": "사용자 프롬프트"
     }
-  ]
+  ],
+  "max_tokens": 4096
 }
 ```
+
+> **참고**: `max_tokens` 파라미터는 선택 사항입니다. 지정하지 않으면 기본값인 100,000이 사용됩니다.
 
 ##### 요청 본문 (이미지 생성)
 
@@ -124,11 +129,12 @@ Authorization: Bearer {idToken}
   "model": "gemini-pro",
   "contents": [
     "사용자 프롬프트"
-  ]
+  ],
+  "max_tokens": 8192
 }
 ```
 
-> **참고**: Google Gemini API는 contents 배열의 첫 번째 항목(`contents[0]`)을 직접 모델에 전달합니다. 따라서 단순 문자열을 배열에 담아 전송합니다.
+> **참고**: Google Gemini API는 contents 배열의 첫 번째 항목(`contents[0]`)을 직접 모델에 전달합니다. 따라서 단순 문자열을 배열에 담아 전송합니다. `max_tokens` 파라미터는 선택 사항이며, 지정하지 않으면 기본값인 100,000이 사용됩니다.
 
 ##### 요청 본문 (멀티모달 입력을 통한 텍스트 생성)
 
@@ -144,11 +150,12 @@ Authorization: Bearer {idToken}
         "mimeType": "image/jpeg"
       }
     }
-  ]
+  ],
+  "max_tokens": 8192
 }
 ```
 
-> **참고**: 멀티모달 입력의 경우 텍스트와 이미지 데이터를 배열 형태로 함께 전달합니다. 이미지는 Base64로 인코딩된 데이터여야 합니다.
+> **참고**: 멀티모달 입력의 경우 텍스트와 이미지 데이터를 배열 형태로 함께 전달합니다. 이미지는 Base64로 인코딩된 데이터여야 합니다. `max_tokens` 파라미터는 선택 사항입니다.
 
 ##### 응답 (텍스트 생성)
 
@@ -188,12 +195,12 @@ Authorization: Bearer {idToken}
       "content": "사용자 프롬프트"
     }
   ],
-  "max_tokens": 2048,
+  "max_tokens": 4096,
   "temperature": 0.7
 }
 ```
 
-> **참고**: Claude API 요청에서 `model`, `messages`, `max_tokens`, `temperature`는 모두 필수 파라미터입니다.
+> **참고**: Claude API 요청에서 `model`, `messages`, `temperature`는 필수 파라미터입니다. `max_tokens` 파라미터는 선택 사항이며, 지정하지 않으면 기본값인 100,000이 사용됩니다.
 
 ##### 요청 본문 (멀티모달 입력을 통한 텍스트 생성)
 
@@ -220,7 +227,7 @@ Authorization: Bearer {idToken}
       ]
     }
   ],
-  "max_tokens": 2048,
+  "max_tokens": 4096,
   "temperature": 0.7
 }
 ```
@@ -270,9 +277,12 @@ Authorization: Bearer {idToken}
       "role": "user",
       "content": "사용자 프롬프트"
     }
-  ]
+  ],
+  "max_tokens": 4096
 }
 ```
+
+> **참고**: `max_tokens` 파라미터는 선택 사항입니다. 지정하지 않으면 기본값인 100,000이 사용됩니다.
 
 #### 요청 본문 (이미지 생성)
 

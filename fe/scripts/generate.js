@@ -16,11 +16,7 @@ const planningStatus = document.getElementById('planning-status');
 const generateCodeBtn = document.getElementById('generate-code-btn');
 const deployBtn = document.getElementById('deploy-btn');
 const codePreview = document.getElementById('code-preview');
-const htmlTab = document.getElementById('html-tab');
-const imagesTab = document.getElementById('images-tab');
 const htmlContent = document.getElementById('html-content');
-const imagesContent = document.getElementById('images-content');
-const imagesContainer = document.getElementById('images-container');
 const copyHtmlBtn = document.getElementById('copy-html-btn');
 const deployInfo = document.getElementById('deploy-info');
 const deployEmptyState = document.getElementById('deploy-empty-state');
@@ -115,7 +111,8 @@ async function generateCode() {
         let apiEndpoint;
         let requestData = {
             type: "text",
-            model: selectedModel.name
+            model: selectedModel.name,
+            max_tokens: 100000 // 기본 max_tokens 값 설정
         };
         
         switch (selectedModel.provider) {
@@ -189,9 +186,6 @@ async function generateCode() {
                     // 코드 표시
                     codePreview.textContent = generatedHtmlCode;
                     
-                    // 이미지 표시
-                    renderImages(generatedImages);
-                    
                     // 별도의 로컬 스토리지에 코드와 이미지 저장
                     localStorage.setItem(LOCAL_STORAGE_KEYS.code, JSON.stringify({
                         html_code: result.html_code,
@@ -231,58 +225,6 @@ async function generateCode() {
 }
 
 /**
- * 이미지 목록 렌더링
- */
-function renderImages(images) {
-    if (!images || images.length === 0) {
-        imagesContainer.innerHTML = `
-            <div class="p-4 bg-gray-50 rounded-lg text-gray-500 text-center">
-                <i class="fas fa-images text-4xl mb-2"></i>
-                <p>아직 생성된 이미지가 없습니다.</p>
-            </div>
-        `;
-        return;
-    }
-    
-    imagesContainer.innerHTML = '';
-    
-    images.forEach(image => {
-        const imageItem = document.createElement('div');
-        imageItem.className = 'image-item';
-        
-        imageItem.innerHTML = `
-            <img src="${image.url}" alt="${image.desc}" class="image-preview">
-            <div class="image-info">
-                <div class="image-key">${image.key}</div>
-                <p class="image-desc">${image.desc.length > 100 ? image.desc.substring(0, 100) + '...' : image.desc}</p>
-                <div class="flex justify-between mt-3">
-                    <button class="text-blue-600 text-sm hover:underline view-desc-btn">
-                        <i class="fas fa-info-circle mr-1"></i> 설명 보기
-                    </button>
-                    <button class="text-green-600 text-sm hover:underline change-img-btn">
-                        <i class="fas fa-exchange-alt mr-1"></i> 이미지 변경
-                    </button>
-                </div>
-            </div>
-        `;
-        
-        // 설명 보기 버튼 이벤트
-        const viewDescBtn = imageItem.querySelector('.view-desc-btn');
-        viewDescBtn.addEventListener('click', () => {
-            alertDialog('이미지 설명', image.desc);
-        });
-        
-        // 이미지 변경 버튼 이벤트 (나중에 구현)
-        const changeImgBtn = imageItem.querySelector('.change-img-btn');
-        changeImgBtn.addEventListener('click', () => {
-            alertDialog('준비 중', '이미지 변경 기능은 준비 중입니다.');
-        });
-        
-        imagesContainer.appendChild(imageItem);
-    });
-}
-
-/**
  * 배포 함수
  */
 async function deployWebsite() {
@@ -290,7 +232,7 @@ async function deployWebsite() {
         // 확인 대화상자
         const confirmed = await confirmDialog(
             '웹사이트 배포', 
-            '생성된 코드로 웹사이트를 배포하시겠습니까?'
+            '생성된 코드로 웹사이트를 배포하시겠습니까? 이미지 플레이스홀더는 저장된 이미지 URL로 대체됩니다.'
         );
         
         if (!confirmed) return;
@@ -298,45 +240,82 @@ async function deployWebsite() {
         // 로딩 표시
         showLoading('웹사이트 배포 중...');
         
-        // 배포 API 호출 (실제로는 구현 필요)
-        // const response = await callSecureApi('/api/deploy', 'POST', {
-        //     code: generatedHtmlCode,
-        //     images: generatedImages
-        // });
+        // HTML 코드에서 이미지 플레이스홀더를 실제 URL로 변환
+        let processedHtmlCode = generatedHtmlCode;
         
-        // 테스트용 임시 응답
-        const response = {
-            success: true,
-            data: {
-                url: 'https://example.com/your-website-' + Date.now()
+        // 각 이미지에 대해 저장된 URL로 대체
+        for (const image of generatedImages) {
+            try {
+                console.log(`이미지 ${image.key} 처리 중...`);
+                showLoading(`이미지 "${image.key}" 처리 중...`);
+                
+                if (image.url) {
+                    console.log(`이미지 ${image.key}를 URL로 대체: ${image.url}`);
+                    
+                    // HTML 코드에서 플레이스홀더 대체
+                    const placeholder = image.key;
+                    const regExp = new RegExp(`(src=["'])${placeholder}(["'])`, 'g');
+                    processedHtmlCode = processedHtmlCode.replace(regExp, `$1${image.url}$2`);
+                    
+                    // background-image 스타일 속성 대체
+                    const bgRegExp = new RegExp(`(background-image:\\s*url\\(['"]+)${placeholder}(['"]+\\))`, 'g');
+                    processedHtmlCode = processedHtmlCode.replace(bgRegExp, `$1${image.url}$2`);
+                } else {
+                    console.warn(`이미지 ${image.key}의 URL이 없습니다. 플레이스홀더를 유지합니다.`);
+                }
+            } catch (error) {
+                console.error(`이미지 ${image.key} 처리 오류:`, error);
+                // 오류가 발생해도 계속 진행 (중요 오류가 아니므로)
+                console.warn(`이미지 ${image.key} 처리 중 오류가 발생했습니다: ${error.message}`);
             }
-        };
-        
-        // 결과 처리
-        if (response && response.success) {
-            // 배포 정보 표시
-            deployUrl.value = response.data.url;
-            visitSiteBtn.href = response.data.url;
-            
-            // UI 업데이트
-            deployInfo.classList.remove('hidden');
-            deployEmptyState.classList.add('hidden');
-            
-            // 배포가 이미 완료되었으므로 다음 단계 안내 메시지 숨기기
-            if (nextStepGuide) {
-                nextStepGuide.classList.add('hidden');
-            }
-            
-            // 로컬 스토리지에 배포 정보 저장
-            localStorage.setItem('flowbang-deploy', JSON.stringify({
-                url: response.data.url,
-                timestamp: Date.now()
-            }));
-            
-            showToast('웹사이트가 성공적으로 배포되었습니다!', 'success');
-        } else {
-            throw new Error(response?.message || '배포에 실패했습니다.');
         }
+        
+        // HTML 파일 업로드
+        showLoading('웹사이트 HTML 코드 업로드 중...');
+        console.log('HTML 코드 업로드 중...');
+        
+        const htmlUploadResponse = await callSecureApi(
+            apiEndpoints.backend.storage, 
+            'POST', 
+            {
+                content: processedHtmlCode,
+                fileName: `website-${Date.now()}.html`,
+                contentType: 'text/html'
+            }
+        );
+        
+        if (!htmlUploadResponse.success) {
+            throw new Error(`HTML 파일 업로드 실패: ${htmlUploadResponse.error?.message || '알 수 없는 오류'}`);
+        }
+        
+        // 배포 URL 가져오기
+        const deployedUrl = htmlUploadResponse.data.url;
+        
+        // 결과 처리: 배포 정보 표시
+        deployUrl.value = deployedUrl;
+        visitSiteBtn.href = deployedUrl;
+        
+        // UI 업데이트
+        deployInfo.classList.remove('hidden');
+        deployEmptyState.classList.add('hidden');
+        
+        // 배포가 이미 완료되었으므로 다음 단계 안내 메시지 숨기기
+        if (nextStepGuide) {
+            nextStepGuide.classList.add('hidden');
+        }
+        
+        // 로컬 스토리지에 배포 정보 저장
+        localStorage.setItem('flowbang-deploy', JSON.stringify({
+            url: deployedUrl,
+            images: generatedImages.map(img => ({
+                key: img.key,
+                url: img.url
+            })),
+            html_file: htmlUploadResponse.data.fileName,
+            timestamp: Date.now()
+        }));
+        
+        showToast('웹사이트가 성공적으로 배포되었습니다!', 'success');
     } catch (error) {
         console.error('배포 오류:', error);
         showToast(error.message || '배포에 실패했습니다.', 'error');
@@ -395,19 +374,15 @@ function loadSavedCode() {
             }
         }
         
-        // 이미지 불러오기
+        // 이미지 불러오기 (배포 기능에 필요한 이미지 데이터 로드)
         const savedImages = localStorage.getItem(LOCAL_STORAGE_KEYS.image);
         if (savedImages) {
             const parsedImageData = JSON.parse(savedImages);
             
             if (parsedImageData.images && parsedImageData.images.length > 0) {
                 generatedImages = parsedImageData.images;
-                
-                // 이미지 표시
-                renderImages(generatedImages);
-                
                 hasGeneratedContent = true;
-                console.log('저장된 이미지를 불러왔습니다.');
+                console.log('저장된 이미지 데이터를 불러왔습니다.');
             }
         }
         
@@ -442,28 +417,21 @@ function loadSavedCode() {
 }
 
 /**
- * 탭 전환 함수
+ * 다음 단계 안내 표시 함수
  */
-function switchTab(tabName) {
-    // 모든 탭 비활성화
-    htmlTab.classList.remove('border-blue-600', 'text-blue-600');
-    imagesTab.classList.remove('border-blue-600', 'text-blue-600');
-    htmlTab.classList.add('border-transparent', 'hover:text-gray-600', 'hover:border-gray-300');
-    imagesTab.classList.add('border-transparent', 'hover:text-gray-600', 'hover:border-gray-300');
-    
-    // 모든 컨텐츠 숨기기
-    htmlContent.classList.add('hidden');
-    imagesContent.classList.add('hidden');
-    
-    // 선택된 탭 활성화
-    if (tabName === 'html') {
-        htmlTab.classList.add('border-blue-600', 'text-blue-600');
-        htmlTab.classList.remove('border-transparent', 'hover:text-gray-600', 'hover:border-gray-300');
-        htmlContent.classList.remove('hidden');
-    } else if (tabName === 'images') {
-        imagesTab.classList.add('border-blue-600', 'text-blue-600');
-        imagesTab.classList.remove('border-transparent', 'hover:text-gray-600', 'hover:border-gray-300');
-        imagesContent.classList.remove('hidden');
+function showNextStepGuide() {
+    if (nextStepGuide) {
+        nextStepGuide.classList.remove('hidden');
+    }
+}
+
+/**
+ * 배포 섹션으로 스크롤 함수
+ */
+function scrollToDeploySection() {
+    const deploySection = document.querySelector('.bg-white.rounded-lg.shadow-lg.p-6:last-child');
+    if (deploySection) {
+        deploySection.scrollIntoView({ behavior: 'smooth' });
     }
 }
 
@@ -484,25 +452,6 @@ function setupModelSelectors() {
 }
 
 /**
- * 다음 단계 안내 표시 함수
- */
-function showNextStepGuide() {
-    if (nextStepGuide) {
-        nextStepGuide.classList.remove('hidden');
-    }
-}
-
-/**
- * 배포 섹션으로 스크롤 함수
- */
-function scrollToDeploySection() {
-    const deploySection = document.querySelector('.bg-white.rounded-lg.shadow-lg.p-6:last-child');
-    if (deploySection) {
-        deploySection.scrollIntoView({ behavior: 'smooth' });
-    }
-}
-
-/**
  * 이벤트 리스너 설정
  */
 function setupEventListeners() {
@@ -516,10 +465,6 @@ function setupEventListeners() {
     if (deployGuideBtn) {
         deployGuideBtn.addEventListener('click', scrollToDeploySection);
     }
-    
-    // 탭 전환 버튼
-    htmlTab.addEventListener('click', () => switchTab('html'));
-    imagesTab.addEventListener('click', () => switchTab('images'));
     
     // 복사 버튼
     copyHtmlBtn.addEventListener('click', () => copyText(generatedHtmlCode, copyHtmlBtn));

@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flowbang - 이미지 라이브러리</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="../styles/common.css">
+    <link rel="stylesheet" href="../styles/librarian.css">
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="max-w-7xl mx-auto px-4 py-8 mt-8">
+        <!-- 로고 및 제목 -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800">Flowbang</h1>
+            <p class="text-gray-600 mt-2">AI 기반 웹사이트 생성 도구</p>
+        </div>
+
+        <!-- AI 이미지 생성/검색 섹션 -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+            <h2 class="text-xl font-semibold text-gray-800 mb-6">AI 이미지 도구</h2>
+            
+            <!-- 설명 텍스트 입력 영역 -->
+            <div class="mb-6">
+                <label for="image-description" class="block text-sm font-medium text-gray-700 mb-1">이미지 설명</label>
+                <textarea id="image-description" rows="3" class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="생성하거나 검색할 이미지를 자세히 설명해주세요..."></textarea>
+            </div>
+            
+            <!-- 이미지 생성 및 검색 옵션 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- 이미지 생성 패널 -->
+                <div class="border rounded-lg p-4">
+                    <h3 class="font-medium text-gray-800 mb-4">AI 이미지 생성</h3>
+                    <div class="space-y-4">
+                        <!-- 이미지 모델 선택기 -->
+                        <div id="image-model-selector-container">
+                            <!-- 모델 선택기가 JS로 여기에 삽입됩니다 -->
+                        </div>
+                        
+                        <!-- 생성 개수 선택 -->
+                        <div class="flex items-center">
+                            <label for="generate-count" class="text-sm font-medium text-gray-700 mr-2">생성 개수:</label>
+                            <select id="generate-count" class="flex-grow p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="1">1장</option>
+                                <option value="2">2장</option>
+                                <option value="3">3장</option>
+                                <option value="4">4장</option>
+                                <option value="5" selected>5장</option>
+                            </select>
+                        </div>
+                        
+                        <!-- 생성 버튼 -->
+                        <button id="generate-images-btn" class="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2">
+                            <i class="fas fa-magic mr-2"></i> 이미지 생성
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 이미지 검색 패널 -->
+                <div class="border rounded-lg p-4">
+                    <h3 class="font-medium text-gray-800 mb-4">AI 이미지 검색</h3>
+                    <div class="space-y-4">
+                        <!-- 텍스트 모델 선택기 -->
+                        <div id="text-model-selector-container">
+                            <!-- 모델 선택기가 JS로 여기에 삽입됩니다 -->
+                        </div>
+                        
+                        <!-- 검색 개수 선택 -->
+                        <div class="flex items-center">
+                            <label for="search-count" class="text-sm font-medium text-gray-700 mr-2">검색 개수:</label>
+                            <select id="search-count" class="flex-grow p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="1">1장</option>
+                                <option value="2">2장</option>
+                                <option value="3">3장</option>
+                                <option value="4">4장</option>
+                                <option value="5" selected>5장</option>
+                            </select>
+                        </div>
+                        
+                        <!-- 검색 버튼 -->
+                        <button id="search-images-btn" class="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                            <i class="fas fa-search mr-2"></i> 이미지 검색
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- AI 결과 미리보기 섹션 -->
+            <div id="ai-result-preview" class="mt-6 pt-6 border-t hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-medium text-gray-800">AI 이미지 결과</h3>
+                    <button id="clear-preview-btn" class="text-sm text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-times mr-1"></i> 지우기
+                    </button>
+                </div>
+                
+                <!-- 결과 이미지 그리드 -->
+                <div id="ai-result-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                    <!-- 결과 이미지가 JS로 여기에 삽입됩니다 -->
+                </div>
+                
+                <!-- 라이브러리에 추가 버튼 - 자동 추가 알림으로 변경 -->
+                <div class="mt-4 text-right">
+                    <button id="add-to-library-btn" disabled class="px-4 py-2 bg-gray-300 text-gray-600 rounded-lg cursor-not-allowed">
+                        <i class="fas fa-check-circle mr-2"></i> 이미지가 자동으로 추가됩니다
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 이미지 라이브러리 관리 -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                <h2 class="text-xl font-semibold text-gray-800">이미지 라이브러리</h2>
+                
+                <!-- 툴바 영역 -->
+                <div class="flex flex-wrap gap-2">
+                    <!-- 이미지 정렬 및 필터 -->
+                    <select id="sort-filter" class="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="newest">최신순</option>
+                        <option value="oldest">오래된순</option>
+                        <option value="name">이름순</option>
+                    </select>
+                    
+                    <!-- 카테고리 필터 -->
+                    <select id="category-filter" class="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="all">모든 카테고리</option>
+                        <option value="ai-generated">AI 생성</option>
+                        <option value="ai-searched">AI 검색</option>
+                        <option value="uploaded">업로드</option>
+                    </select>
+                    
+                    <!-- 검색 필드 -->
+                    <div class="relative">
+                        <input type="text" id="search-library" placeholder="이미지 검색..." class="p-2 pl-8 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <i class="fas fa-search absolute left-2.5 top-3 text-gray-400"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 이미지 그리드 -->
+            <div id="image-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                <!-- 이미지 아이템 템플릿 (실제로는 JS로 동적 생성) -->
+                <div class="image-item-template hidden">
+                    <div class="image-card border rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+                        <div class="aspect-video bg-gray-100 relative">
+                            <img src="#" alt="이미지 미리보기" class="w-full h-full object-cover">
+                            <div class="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-30 transition-all flex items-center justify-center opacity-0 hover:opacity-100">
+                                <div class="flex space-x-2">
+                                    <button class="view-image-btn p-2 bg-white rounded-full text-gray-700 hover:bg-gray-100" title="크게 보기">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <button class="edit-image-btn p-2 bg-white rounded-full text-gray-700 hover:bg-gray-100" title="정보 수정">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="delete-image-btn p-2 bg-white rounded-full text-gray-700 hover:bg-gray-100" title="삭제">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="p-2">
+                            <h3 class="image-title text-sm font-medium text-gray-800 truncate">이미지 제목</h3>
+                            <p class="image-date text-xs text-gray-500 mt-1">2023.04.05</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 로딩 상태 표시 -->
+                <div id="loading-images" class="col-span-full py-12 text-center">
+                    <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
+                    <p class="text-gray-600">이미지를 불러오는 중...</p>
+                </div>
+                
+                <!-- 이미지 없음 상태 -->
+                <div id="no-images" class="hidden col-span-full py-12 text-center">
+                    <i class="fas fa-photo-film text-gray-300 text-5xl mb-4"></i>
+                    <p class="text-gray-600">이미지 라이브러리가 비어있습니다</p>
+                    <p class="text-sm text-gray-500 mt-2">AI로 이미지를 생성하거나 검색하여 자동으로 라이브러리를 구성하세요</p>
+                </div>
+            </div>
+            
+            <!-- 페이지네이션 -->
+            <div id="pagination" class="mt-8 flex justify-center">
+                <nav class="inline-flex rounded-md shadow-sm">
+                    <button id="prev-page" class="px-3 py-1 border border-gray-300 bg-white text-gray-700 rounded-l-md hover:bg-gray-50">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <div id="page-numbers" class="flex">
+                        <!-- 페이지 번호 JS로 동적 생성 -->
+                        <button class="page-number px-3 py-1 border-t border-b border-gray-300 bg-white text-gray-700 hover:bg-gray-50">1</button>
+                    </div>
+                    <button id="next-page" class="px-3 py-1 border border-gray-300 bg-white text-gray-700 rounded-r-md hover:bg-gray-50">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </nav>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 이미지 크게 보기 모달 -->
+    <div id="view-image-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 flex flex-col">
+            <div class="flex justify-between items-center p-4 border-b">
+                <h3 id="fullsize-title" class="text-lg font-semibold text-gray-800">이미지 제목</h3>
+                <button id="close-view-modal-btn" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-4 flex-grow flex flex-col items-center justify-center bg-gray-50">
+                <img id="fullsize-image" src="#" alt="크게 보기" class="max-w-full max-h-[70vh] object-contain">
+            </div>
+            <div class="p-4 border-t">
+                <p id="fullsize-info" class="text-gray-600">이미지 정보</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 설정 및 스크립트 -->
+    <script type="module" src="../configs/config.js"></script>
+    <script type="module" src="../scripts/common.js"></script>
+    <script type="module" src="../scripts/librarian.js"></script>
+</body>
+</html> 

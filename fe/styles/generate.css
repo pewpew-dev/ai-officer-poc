@@ -27,6 +27,7 @@
     border-radius: 0.5rem;
     overflow: hidden;
     transition: all 0.3s ease;
+    margin-bottom: 1rem;
 }
 
 .image-item:hover {
@@ -39,10 +40,13 @@
     height: 200px;
     object-fit: cover;
     border-bottom: 1px solid #e2e8f0;
+    display: none; /* 배포 화면에서 이미지 미리보기 숨김 */
 }
 
 .image-info {
     padding: 1rem;
+    background-color: #f8fafc;
+    border-radius: 0.5rem;
 }
 
 .image-key {
@@ -52,6 +56,7 @@
     border-radius: 0.25rem;
     font-size: 0.875rem;
     color: #2d3748;
+    display: inline-block;
 }
 
 .image-desc {
@@ -84,4 +89,17 @@ button:active:not(:disabled) {
 .copied {
     animation: copiedAnimation 0.5s ease;
     background-color: #10B981 !important; /* 성공 색상으로 변경 */
+}
+
+/* 이미지 탭 스타일 향상 */
+#images-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1rem;
+}
+
+@media (max-width: 768px) {
+    #images-container {
+        grid-template-columns: 1fr;
+    }
 } 

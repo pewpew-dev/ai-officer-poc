@@ -86,41 +86,15 @@
         <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
             <h2 class="text-xl font-semibold text-gray-800 mb-4">웹사이트 배포</h2>
             
-            <!-- 코드 탭 메뉴 -->
-            <div class="border-b border-gray-200 mb-4">
-                <ul class="flex flex-wrap -mb-px" id="code-tabs">
-                    <li class="mr-2">
-                        <button class="inline-block p-4 border-b-2 border-blue-600 text-blue-600 font-medium" id="html-tab">HTML</button>
-                    </li>
-                    <li class="mr-2">
-                        <button class="inline-block p-4 border-b-2 border-transparent hover:text-gray-600 hover:border-gray-300" id="images-tab">이미지</button>
-                    </li>
-                </ul>
-            </div>
-            
-            <!-- 탭 콘텐츠 -->
-            <div id="code-content">
-                <!-- HTML 코드 뷰 -->
-                <div id="html-content" class="block">
-                    <div class="bg-gray-800 text-white p-4 rounded-t-lg flex justify-between items-center">
-                        <span>HTML 코드</span>
-                        <button id="copy-html-btn" class="p-1 bg-gray-700 hover:bg-gray-600 rounded">
-                            <i class="fas fa-copy"></i>
-                        </button>
-                    </div>
-                    <pre id="code-preview" class="bg-gray-900 text-gray-200 p-4 rounded-b-lg overflow-x-auto h-96"><code>// 코드가 여기에 표시됩니다.</code></pre>
+            <!-- HTML 코드 뷰 - 항상 표시 -->
+            <div id="html-content">
+                <div class="bg-gray-800 text-white p-4 rounded-t-lg flex justify-between items-center">
+                    <span>HTML 코드</span>
+                    <button id="copy-html-btn" class="p-1 bg-gray-700 hover:bg-gray-600 rounded">
+                        <i class="fas fa-copy"></i>
+                    </button>
                 </div>
-                
-                <!-- 이미지 뷰 -->
-                <div id="images-content" class="hidden">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="images-container">
-                        <!-- 이미지 항목들이 동적으로 여기에 추가됩니다 -->
-                        <div class="p-4 bg-gray-50 rounded-lg text-gray-500 text-center">
-                            <i class="fas fa-images text-4xl mb-2"></i>
-                            <p>아직 생성된 이미지가 없습니다.</p>
-                        </div>
-                    </div>
-                </div>
+                <pre id="code-preview" class="bg-gray-900 text-gray-200 p-4 rounded-b-lg overflow-x-auto h-96"><code>// 코드가 여기에 표시됩니다.</code></pre>
             </div>
             
             <!-- 배포 버튼 영역 -->
