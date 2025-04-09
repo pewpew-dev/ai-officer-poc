@@ -252,14 +252,32 @@ async function deployWebsite() {
                 if (image.url) {
                     console.log(`이미지 ${image.key}를 URL로 대체: ${image.url}`);
                     
-                    // HTML 코드에서 플레이스홀더 대체
-                    const placeholder = image.key;
-                    const regExp = new RegExp(`(src=["'])${placeholder}(["'])`, 'g');
-                    processedHtmlCode = processedHtmlCode.replace(regExp, `$1${image.url}$2`);
+                    // 이스케이프 처리된 키 생성 (정규식 특수문자 처리)
+                    const escapedKey = image.key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                     
-                    // background-image 스타일 속성 대체
-                    const bgRegExp = new RegExp(`(background-image:\\s*url\\(['"]+)${placeholder}(['"]+\\))`, 'g');
-                    processedHtmlCode = processedHtmlCode.replace(bgRegExp, `$1${image.url}$2`);
+                    // HTML 코드에서 플레이스홀더 대체
+                    // img 태그의 src 속성 대체
+                    const srcRegex = new RegExp(`src=["']${escapedKey}["']`, 'g');
+                    processedHtmlCode = processedHtmlCode.replace(srcRegex, `src="${image.url}"`);
+                    
+                    // CSS background-image URL 대체 (다양한 형태 처리)
+                    // 1. url('KEY') - 작은따옴표
+                    // 2. url("KEY") - 큰따옴표 
+                    // 3. url(KEY) - 따옴표 없음
+                    // 4. url( 'KEY' ) - 공백과 따옴표 조합
+                    // 5. url( "KEY" ) - 공백과 따옴표 조합
+                    // 6. url( KEY ) - 공백만 있는 경우
+                    const bgRegex = new RegExp(`url\\(\\s*['"]?${escapedKey}['"]?\\s*\\)`, 'g');
+                    processedHtmlCode = processedHtmlCode.replace(bgRegex, `url("${image.url}")`);
+                    
+                    // 인라인 스타일 내 background URL이 세미콜론 없이 끝나는 경우 처리
+                    const inlineStyleRegex = new RegExp(`background(-image)?:\\s*url\\(\\s*['"]?${escapedKey}['"]?\\s*\\)`, 'g');
+                    processedHtmlCode = processedHtmlCode.replace(inlineStyleRegex, `background$1: url("${image.url}")`);
+                    
+                    // 다른 속성에서도 키워드 대체가 필요한 경우를 위한 범용 패턴
+                    // 예: content: url('KEY') 또는 list-style-image: url('KEY')
+                    const otherUrlsRegex = new RegExp(`:\\s*url\\(\\s*['"]?${escapedKey}['"]?\\s*\\)`, 'g');
+                    processedHtmlCode = processedHtmlCode.replace(otherUrlsRegex, `: url("${image.url}")`);
                 } else {
                     console.warn(`이미지 ${image.key}의 URL이 없습니다. 플레이스홀더를 유지합니다.`);
                 }
